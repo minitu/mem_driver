@@ -1,0 +1,134 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+ADDR_RESOLVED	mem_rdma.h	/^	ADDR_RESOLVED,$/;"	e	enum:test_state
+CONNECTED	mem_rdma.h	/^	CONNECTED,$/;"	e	enum:test_state
+CONNECT_REQUEST	mem_rdma.h	/^	CONNECT_REQUEST,$/;"	e	enum:test_state
+ERROR	mem_rdma.h	/^	ERROR$/;"	e	enum:test_state
+HASHSIZE	mem_hash.h	3;"	d
+IDLE	mem_rdma.h	/^	IDLE = 1,$/;"	e	enum:test_state
+MEMORY_BUFSIZE	mem_rdma.h	23;"	d
+MEMORY_SQ_DEPTH	mem_rdma.h	24;"	d
+NPAGES	mem_driver.h	4;"	d
+NPAGES	mmap.c	33;"	d	file:
+RDMA_READ_ADV	mem_rdma.h	/^	RDMA_READ_ADV,$/;"	e	enum:test_state
+RDMA_READ_COMPLETE	mem_rdma.h	/^	RDMA_READ_COMPLETE,$/;"	e	enum:test_state
+RDMA_WRITE_ADV	mem_rdma.h	/^	RDMA_WRITE_ADV,$/;"	e	enum:test_state
+RDMA_WRITE_COMPLETE	mem_rdma.h	/^	RDMA_WRITE_COMPLETE,$/;"	e	enum:test_state
+ROUTE_RESOLVED	mem_rdma.h	/^	ROUTE_RESOLVED,$/;"	e	enum:test_state
+addr	mem_rdma.h	/^	u8 addr[16];					\/\/ dst addr$/;"	m	struct:memory_cb
+addr_str	mem_rdma.h	/^	char *addr_str;					\/\/ dst addr string$/;"	m	struct:memory_cb
+addr_type	mem_rdma.h	/^	uint8_t addr_type;				\/\/ ADDR_FAMILY - IPv4\/v6$/;"	m	struct:memory_cb
+buf	mem_rdma.h	/^	uint64_t buf;$/;"	m	struct:memory_rdma_info
+cache_map	mem_hash.h	/^struct cache_map {$/;"	s
+child_cm_id	mem_rdma.h	/^	struct rdma_cm_id *child_cm_id;	\/\/ connection on server side$/;"	m	struct:memory_cb	typeref:struct:memory_cb::rdma_cm_id
+client_recv	mem_rdma.c	/^static int client_recv(struct memory_cb *cb, struct ib_wc *wc) {$/;"	f	file:
+cm_id	mem_rdma.h	/^	struct rdma_cm_id *cm_id;		\/\/ connection on client, listener on server$/;"	m	struct:memory_cb	typeref:struct:memory_cb::rdma_cm_id
+cmd	mem_driver.c	/^static char *cmd;$/;"	v	file:
+cq	mem_rdma.h	/^	struct ib_cq *cq;				\/\/ completion queue$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_cq
+dma_mr	mem_rdma.h	/^	struct ib_mr *dma_mr;$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_mr
+fault_cnt	mem_driver.c	/^int fault_cnt = 0; \/\/ # of faults$/;"	v
+fill_sockaddr	mem_rdma.c	/^static void fill_sockaddr(struct sockaddr_storage *sin, struct memory_cb *cb) {$/;"	f	file:
+gcb	mem_rdma.c	/^struct memory_cb gcb;$/;"	v	typeref:struct:memory_cb
+get	mem_hash.c	/^struct cache_map *get(unsigned long vp) {$/;"	f
+gt_id	mem_driver.c	/^struct task_struct *gt_id = NULL;$/;"	v	typeref:struct:task_struct
+hash	mem_hash.c	/^unsigned long hash(unsigned long vp) {$/;"	f
+hashtab	mem_hash.c	/^static struct cache_map *hashtab[HASHSIZE];$/;"	v	typeref:struct:cache_map	file:
+htonll	mem_rdma.h	26;"	d
+index	mem_hash.h	/^	unsigned long index;$/;"	m	struct:cache_map
+ioremapped	mem_driver.c	/^void *ioremapped; \/\/ ioremapped area$/;"	v
+kthread_example	mem_driver.c	/^static int kthread_example(void *arg) {$/;"	f	file:
+main	mem_test.c	/^int main()$/;"	f
+memory-y	Makefile	/^memory-y := mem_rdma.o mem_hash.o mem_driver.o$/;"	m
+memory_accept	mem_rdma.c	/^static int memory_accept(struct memory_cb *cb) {$/;"	f	file:
+memory_bind_client	mem_rdma.c	/^static int memory_bind_client(struct memory_cb *cb) {$/;"	f	file:
+memory_bind_server	mem_rdma.c	/^static int memory_bind_server(struct memory_cb *cb) {$/;"	f	file:
+memory_cb	mem_rdma.h	/^struct memory_cb {$/;"	s
+memory_cma_event_handler	mem_rdma.c	/^static int memory_cma_event_handler(struct rdma_cm_id *cma_id,$/;"	f	file:
+memory_connect_client	mem_rdma.c	/^static int memory_connect_client(struct memory_cb *cb) {$/;"	f	file:
+memory_cq_event_handler	mem_rdma.c	/^static void memory_cq_event_handler(struct ib_cq *cq, void *ctx) {$/;"	f	file:
+memory_create_qp	mem_rdma.c	/^static int memory_create_qp(struct memory_cb *cb) {$/;"	f	file:
+memory_exit	mem_driver.c	/^module_exit(memory_exit);$/;"	v
+memory_exit	mem_driver.c	/^void memory_exit(void) {$/;"	f
+memory_fault	mem_driver.c	/^int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {$/;"	f
+memory_fops	mem_driver.c	/^struct file_operations memory_fops = {$/;"	v	typeref:struct:file_operations
+memory_format_send	mem_rdma.c	/^static void memory_format_send(struct memory_cb *cb, u64 buf) {$/;"	f	file:
+memory_free_buffers	mem_rdma.c	/^static void memory_free_buffers(struct memory_cb *cb) {$/;"	f	file:
+memory_free_qp	mem_rdma.c	/^static void memory_free_qp(struct memory_cb *cb) {$/;"	f	file:
+memory_init	mem_driver.c	/^int memory_init(void) {$/;"	f
+memory_init	mem_driver.c	/^module_init(memory_init);$/;"	v
+memory_major	mem_driver.c	/^int memory_major = 60; \/\/ major number$/;"	v
+memory_mmap	mem_driver.c	/^ssize_t memory_mmap(struct file *flip, struct vm_area_struct *vma)$/;"	f
+memory_node_info	mem_rdma.h	/^struct memory_node_info {$/;"	s
+memory_open	mem_driver.c	/^int memory_open(struct inode *inode, struct file *filp) $/;"	f
+memory_proc	mem_driver.c	/^static struct proc_dir_entry *memory_proc;$/;"	v	typeref:struct:proc_dir_entry	file:
+memory_rdma_exec	mem_rdma.c	/^int memory_rdma_exec(char *cmd) {$/;"	f
+memory_rdma_info	mem_rdma.h	/^struct memory_rdma_info {$/;"	s
+memory_read	mem_driver.c	/^ssize_t memory_read(struct file *filp, char *buf, $/;"	f
+memory_release	mem_driver.c	/^int memory_release(struct inode *inode, struct file *filp) {$/;"	f
+memory_run_client	mem_rdma.c	/^static void memory_run_client(struct memory_cb *cb) {$/;"	f	file:
+memory_run_server	mem_rdma.c	/^static void memory_run_server(struct memory_cb *cb) {$/;"	f	file:
+memory_setup_buffers	mem_rdma.c	/^static int memory_setup_buffers(struct memory_cb *cb) {$/;"	f	file:
+memory_setup_qp	mem_rdma.c	/^static int memory_setup_qp(struct memory_cb *cb, struct rdma_cm_id *cm_id) {$/;"	f	file:
+memory_setup_wr	mem_rdma.c	/^static void memory_setup_wr(struct memory_cb *cb) {$/;"	f	file:
+memory_test_client	mem_rdma.c	/^static void memory_test_client(struct memory_cb *cb) {$/;"	f	file:
+memory_test_server	mem_rdma.c	/^static void memory_test_server(struct memory_cb *cb) {$/;"	f	file:
+memory_vm_ops	mem_driver.c	/^struct vm_operations_struct memory_vm_ops = {$/;"	v	typeref:struct:vm_operations_struct
+memory_vma_close	mem_driver.c	/^void memory_vma_close(struct vm_area_struct *vma) {$/;"	f
+memory_vma_open	mem_driver.c	/^void memory_vma_open(struct vm_area_struct *vma) {$/;"	f
+memory_write	mem_driver.c	/^ssize_t memory_write( struct file *filp, char *buf,$/;"	f
+mmap_cdev	mmap.c	/^static struct cdev mmap_cdev;$/;"	v	typeref:struct:cdev	file:
+mmap_dev	mmap.c	/^static dev_t mmap_dev;$/;"	v	file:
+mmap_exit	mmap.c	/^module_exit(mmap_exit);$/;"	v
+mmap_exit	mmap.c	/^static void __exit mmap_exit(void)$/;"	f	file:
+mmap_fops	mmap.c	/^static struct file_operations mmap_fops = {$/;"	v	typeref:struct:file_operations	file:
+mmap_init2	mmap.c	/^module_init(mmap_init2);$/;"	v
+mmap_init2	mmap.c	/^static int __init mmap_init2(void)$/;"	f	file:
+mmap_mmap	mmap.c	/^static int mmap_mmap(struct file *filp, struct vm_area_struct *vma)$/;"	f	file:
+mmap_open	mmap.c	/^static int mmap_open(struct inode *inode, struct file *filp)$/;"	f	file:
+mmap_release	mmap.c	/^static int mmap_release(struct inode *inode, struct file *filp)$/;"	f	file:
+mmap_vmem	mmap.c	/^int mmap_vmem(struct file *filp, struct vm_area_struct *vma)$/;"	f
+next	mem_hash.h	/^	struct cache_map *next;$/;"	m	struct:cache_map	typeref:struct:cache_map::cache_map
+node	mem_hash.h	/^	int node;$/;"	m	struct:cache_map
+ntohll	mem_rdma.h	27;"	d
+obj-m	Makefile	/^obj-m :=memory.o$/;"	m
+pd	mem_rdma.h	/^	struct ib_pd *pd;				\/\/ protection domain$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_pd
+port	mem_rdma.h	/^	uint16_t port;					\/\/ dst port$/;"	m	struct:memory_cb
+put	mem_hash.c	/^int put(unsigned long vp, unsigned long index, int node) {$/;"	f
+qp	mem_rdma.h	/^	struct ib_qp *qp;				\/\/ queue pair$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_qp
+rdma_buf	mem_rdma.h	/^	struct memory_node_info *rdma_buf;$/;"	m	struct:memory_cb	typeref:struct:memory_cb::memory_node_info
+rdma_cache	mem_driver.c	/^struct page* rdma_cache[NPAGES]; \/\/ pool of physical pages$/;"	v	typeref:struct:page
+rdma_dma_addr	mem_rdma.h	/^	u64 rdma_dma_addr;$/;"	m	struct:memory_cb
+rdma_sgl	mem_rdma.h	/^	struct ib_sge rdma_sgl;			\/\/ RDMA single SGE$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_sge
+rdma_sq_wr	mem_rdma.h	/^	struct ib_send_wr rdma_sq_wr;	\/\/ RDMA work request record$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_send_wr
+recv_buf	mem_rdma.h	/^	struct memory_rdma_info recv_buf;$/;"	m	struct:memory_cb	typeref:struct:memory_cb::memory_rdma_info
+recv_dma_addr	mem_rdma.h	/^	u64 recv_dma_addr;$/;"	m	struct:memory_cb
+recv_sgl	mem_rdma.h	/^	struct ib_sge recv_sgl;			\/\/ recv single SGE$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_sge
+remote_addr	mem_rdma.h	/^	uint64_t remote_addr;$/;"	m	struct:memory_cb
+remote_len	mem_rdma.h	/^	uint32_t remote_len;$/;"	m	struct:memory_cb
+remote_rkey	mem_rdma.h	/^	uint32_t remote_rkey;$/;"	m	struct:memory_cb
+rkey	mem_rdma.h	/^	uint32_t rkey;$/;"	m	struct:memory_rdma_info
+rq_wr	mem_rdma.h	/^	struct ib_recv_wr rq_wr;		\/\/ recv work request record$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_recv_wr
+sem	mem_driver.c	/^struct semaphore sem;$/;"	v	typeref:struct:semaphore
+sem	mem_rdma.h	/^	wait_queue_head_t sem;$/;"	m	struct:memory_cb
+send_buf	mem_rdma.h	/^	struct memory_rdma_info send_buf;$/;"	m	struct:memory_cb	typeref:struct:memory_cb::memory_rdma_info
+send_dma_addr	mem_rdma.h	/^	u64 send_dma_addr;$/;"	m	struct:memory_cb
+send_sgl	mem_rdma.h	/^	struct ib_sge send_sgl;			\/\/ send single SGE$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_sge
+server	mem_rdma.h	/^	int server;						\/\/ 0 iff client$/;"	m	struct:memory_cb
+server_recv	mem_rdma.c	/^static int server_recv(struct memory_cb *cb, struct ib_wc *wc) {$/;"	f	file:
+size	mem_rdma.h	/^	int size;						\/\/ packet size$/;"	m	struct:memory_cb
+size	mem_rdma.h	/^	uint32_t size;$/;"	m	struct:memory_rdma_info
+size	mem_rdma.h	/^	uint64_t size;$/;"	m	struct:memory_node_info
+sq_wr	mem_rdma.h	/^	struct ib_send_wr sq_wr;		\/\/ send work request record$/;"	m	struct:memory_cb	typeref:struct:memory_cb::ib_send_wr
+start_buf	mem_rdma.h	/^	struct memory_node_info *start_buf;$/;"	m	struct:memory_cb	typeref:struct:memory_cb::memory_node_info
+start_dma_addr	mem_rdma.h	/^	u64 start_dma_addr;$/;"	m	struct:memory_cb
+state	mem_rdma.h	/^	enum test_state state;$/;"	m	struct:memory_cb	typeref:enum:memory_cb::test_state
+succ	mem_driver.c	/^int succ = -1; \/\/ # of successfully allocated physical pages - 1$/;"	v
+test_state	mem_rdma.h	/^enum test_state {$/;"	g
+txdepth	mem_rdma.h	/^	int txdepth;					\/\/ SQ depth$/;"	m	struct:memory_cb
+vmalloc_area	mmap.c	/^static char *vmalloc_area;$/;"	v	file:
+vmas	mem_driver.c	/^int vmas = 0; \/\/ # of active mappings$/;"	v
+vp	mem_hash.h	/^	unsigned long vp;$/;"	m	struct:cache_map
