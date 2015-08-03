@@ -1,21 +1,62 @@
 #include "mem_rdma.h"
 
 extern void* slabs[NSLABS];
+extern char avail[NSLABS][NPAGES_SLAB];
+int cur_slab = 0;
+int cur_pgoff = 0;
+
 struct memory_cb *gcb;
 struct task_struct *kc_id = NULL;
 int comm_cnt = 0;
 
+static void memory_comm_send(unsigned int req_type, unsigned long munmap_va, \
+		unsigned int slab, unsigned int pgoff) {
+
+	struct memory_cb *cb = gcb;
+	struct memory_comm_info *info = &cb->send_comm_buf;
+
+	info->req_type = htonl(req_type);
+	info->munmap_va = htonll(munmap_va);
+	info->slab[0] = htonl(slab);
+	info->pgoff[0] = htonl(pgoff);
+	info->cnt = htonl(1);
+
+	printk("sending req_type: %u, munmap_va: %lu, slab[0]: %u, pgoff[0]: %u\n", \
+			req_type, munmap_va, slab, pgoff);
+}
+
+static void memory_comm_send_multi(unsigned int req_type, unsigned long munmap_va, \
+		unsigned int *slabs, unsigned int *pgoffs, unsigned int cnt) {
+
+	int i;
+	struct memory_cb *cb = gcb;
+	struct memory_comm_info *info = &cb->send_comm_buf;
+
+	info->req_type = htonl(req_type);
+	info->munmap_va = htonll(munmap_va);
+	for (i = 0; i < CHUNK_SIZE; i++) {
+		info->slab[i] = htonl(slabs[i]);
+		info->pgoff[i] = htonl(pgoffs[i]);
+	}
+	info->cnt = htonl(cnt);
+
+	printk("sending req_type: %u, munmap_va: %lu, %u slab/pgoff pairs", \
+			req_type, munmap_va, cnt);
+}
+
 static int kthread_client(void *arg) {
 
 	int ret = 0;
+	unsigned int reply_req_type;
 	struct memory_cb *cb = gcb;
-	struct ib_recv_wr *bad_wr;
+	struct ib_recv_wr *bad_recv_wr;
+	struct ib_send_wr *bad_send_wr;
 	
 	printk("%s started\n", __FUNCTION__);
 
 	while(1) {
 	
-		ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr);
+		ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_recv_wr);
 		if (ret) {
 			printk(KERN_ERR "ib_post_recv failed: %d\n", ret);
 			return -1;
@@ -30,12 +71,62 @@ static int kthread_client(void *arg) {
 		// TODO: handle server request
 		switch(cb->req_type) {
 		case 0:
+			printk("handling request type 0: respond free slab & pgoff\n");
+		
+			int i, j;
+			int jj = NPAGES_SLAB;
+			int slab, pgoff;
+
+			// look for free page: from cur to end
+			for (i = cur_slab; i < NSLABS; i++) {
+				for (j = cur_pgoff; j < NPAGES_SLAB; j++) {
+					if (avail[i][j] == 'f') {
+						slab = i;
+						pgoff = j;
+						avail[i][j] = 'a';
+						goto found;
+					}
+				}
+			}
+
+			// look for free page: from start to cur
+			for (i = 0; i <= cur_slab; i++) {
+				if (i == cur_slab)
+					jj = cur_pgoff;
+				for (j = 0; j < jj; j++) {
+					if (avail[i][j] == 'f') {
+						slab = i;
+						pgoff = j;
+						avail[i][j] = 'a';
+						goto found;
+					}
+				}
+			}
+
+			// no free page
+			memory_comm_send(1, 0, 0, 0);
+
+found:
+			cur_slab = slab;
+			cur_pgoff = pgoff;
+
+			// send free page info
+			memory_comm_send(0, 0, slab, pgoff);
+
 			break;
 		case 1:
+			printk("handling request type 1: free due to munmap\n");
+
 			break;
 		default:
-			printk(KERN_ERR "invalid request! %d\n", cb->req_type);
+			printk(KERN_ERR "invalid request! type %d\n", cb->req_type);
 			break;
+		}
+
+		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_send_wr);
+		if (ret) {
+			printk(KERN_ERR "ib_post_send failed: %d\n", ret);
+			return -1;
 		}
 
 		cb->state = SYNC_READY;
@@ -152,18 +243,28 @@ static int client_recv(struct memory_cb *cb, struct ib_wc *wc) {
 	return 0;
 }
 
-static int client_recv_2(struct memory_cb *cb, struct ib_wc *wc) {
-	if (wc->byte_len != sizeof(cb->recv_buf)) {
+static int comm_recv(struct memory_cb *cb, struct ib_wc *wc) {
+	
+	int i;
+
+	if (wc->byte_len != sizeof(cb->recv_comm_buf)) {
 		printk(KERN_ERR "received bogus data, size %d\n",
 				wc->byte_len);
 		return -1;
 	}
 
-	// save server request
+	// save client response
 	cb->req_type = ntohl(cb->recv_comm_buf.req_type);
 	cb->munmap_va = ntohll(cb->recv_comm_buf.munmap_va);
-	cb->slab = ntohl(cb->recv_comm_buf.slab);
-	cb->pgoff = ntohl(cb->recv_comm_buf.pgoff);
+	for (i = 0; i < CHUNK_SIZE; i++) {
+		cb->slab[i] = ntohl(cb->recv_comm_buf.slab[i]);
+		cb->pgoff[i] = ntohl(cb->recv_comm_buf.pgoff[i]);
+	}
+	cb->cnt = ntohl(cb->recv_comm_buf.cnt);
+
+	printk("received req_type: %u, munmap_va: %lu, slab[0]: %u, pgoff[0]: %u, cnt: %u\n", \
+			(unsigned int)cb->req_type, (unsigned long)cb->munmap_va, \
+			(unsigned int)cb->slab[0], (unsigned int)cb->pgoff[0], (unsigned int)cb->cnt);
 
 	// change state
 	if (cb->state <= SYNC_READY)
@@ -176,7 +277,7 @@ static void memory_cq_event_handler(struct ib_cq *cq, void *ctx) {
 
 	struct memory_cb *cb = ctx;
 	struct ib_wc wc;
-	struct ib_recv_wr *bad_wr;
+	//struct ib_recv_wr *bad_wr;
 	int ret;
 
 	if (cb->state == ERROR) {
@@ -231,15 +332,13 @@ static void memory_cq_event_handler(struct ib_cq *cq, void *ctx) {
 					*/
 					wake_up_interruptible(&cb->sem);
 				}
-				else { // TODO: other sync comms
-					if (!cb->server) {
-						ret = client_recv_2(cb, &wc);
-						if (ret) {
-							printk(KERN_ERR "recv wc error: %d\n", ret);
-							goto error;
-						}
-						wake_up_interruptible(&cb->sem);
+				else { // other sync comms
+					ret = comm_recv(cb, &wc);
+					if (ret) {
+						printk(KERN_ERR "recv wc error: %d\n", ret);
+						goto error;
 					}
+					wake_up_interruptible(&cb->sem);
 				}
 				break;
 			default:
@@ -394,6 +493,12 @@ static void memory_free_buffers(struct memory_cb *cb) {
 	dma_unmap_single(cb->pd->device->dma_device,
 			pci_unmap_addr(cb, send_mapping),
 			sizeof(cb->send_buf), DMA_BIDIRECTIONAL);
+	dma_unmap_single(cb->pd->device->dma_device,
+			pci_unmap_addr(cb, recv_comm_mapping),
+			sizeof(cb->recv_comm_buf), DMA_BIDIRECTIONAL);
+	dma_unmap_single(cb->pd->device->dma_device,
+			pci_unmap_addr(cb, send_comm_mapping),
+			sizeof(cb->send_comm_buf), DMA_BIDIRECTIONAL);
 	dma_unmap_sg(cb->pd->device->dma_device,
 			cb->rdma_sl, NSLABS, DMA_BIDIRECTIONAL);
 	/*
@@ -499,7 +604,7 @@ static void memory_format_send(struct memory_cb *cb) {
 	}
 }
 
-void server_rdma_write(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff) {
+int server_rdma_write(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff) {
 
 	struct memory_cb *cb = gcb;
 	struct ib_send_wr *bad_wr;
@@ -520,25 +625,28 @@ void server_rdma_write(int local_slab, int local_pgoff, int remote_slab, int rem
 	ret = ib_post_send(cb->qp, &cb->rdma_sq_wr, &bad_wr);
 	if (ret) {
 		printk(KERN_ERR "post send error %d\n", ret);
-		return;
+		return -1;
 	}
 	cb->rdma_sq_wr.next = NULL;
 
-	printk("server posted rdma write req\n");
+	printk("server posted rdma write req: %d.%d -> %d.%d\n", \
+			local_slab, local_pgoff, remote_slab, remote_pgoff);
 
 	/* Wait for read completion */
 	wait_event_interruptible(cb->sem, cb->state >= RDMA_COMPLETE);
 	if (cb->state != RDMA_COMPLETE) {
 		printk(KERN_ERR "wait for RDMA_COMPLETE state %d\n", cb->state);
-		return;
+		return -1;
 	}
 	
 	printk("server received write complete\n");
 
 	cb->state = RDMA_READY;
+
+	return 0;
 }
 
-void server_rdma_read(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff) {
+int server_rdma_read(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff) {
 	
 	struct memory_cb *cb = gcb;
 	struct ib_send_wr *bad_wr;
@@ -560,22 +668,25 @@ void server_rdma_read(int local_slab, int local_pgoff, int remote_slab, int remo
 	ret = ib_post_send(cb->qp, &cb->rdma_sq_wr, &bad_wr);
 	if (ret) {
 		printk(KERN_ERR "post send error %d\n", ret);
-		return;
+		return -1;
 	}
 	cb->rdma_sq_wr.next = NULL;
 
-	printk("server posted rdma read req\n");
+	printk("server posted rdma read req: %d.%d <- %d.%d\n", \
+			local_slab, local_pgoff, remote_slab, remote_pgoff);
 
 	/* Wait for read completion */
 	wait_event_interruptible(cb->sem, cb->state >= RDMA_COMPLETE);
 	if (cb->state != RDMA_COMPLETE) {
 		printk(KERN_ERR "wait for RDMA_COMPLETE state %d\n", cb->state);
-		return;
+		return -1;
 	}
 	
 	printk("server received read complete\n");
 
 	cb->state = RDMA_READY;
+
+	return 0;
 }
 
 
@@ -589,6 +700,78 @@ static void fill_sockaddr(struct sockaddr_storage *sin, struct memory_cb *cb) {
 		memcpy((void *)&sin4->sin_addr.s_addr, cb->addr, 4);
 		sin4->sin_port = cb->port;
 	}
+}
+
+int server_ask_free(unsigned int *slab, unsigned int *pgoff) {
+
+	int ret = 0;
+	struct memory_cb *cb = gcb;
+	struct ib_recv_wr *bad_recv_wr;
+	struct ib_send_wr *bad_send_wr;
+
+	memory_comm_send(0, 0, 0, 0);
+
+	ret	= ib_post_send(cb->qp, &cb->sq_wr, &bad_send_wr);
+	if (ret) {
+		printk(KERN_ERR "ib_post_send failed: %d\n", ret);
+		return -1;
+	}
+
+	ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_recv_wr);
+	if (ret) {
+		printk(KERN_ERR "ib_post_recv failed: %d\n", ret);
+		return -1;
+	}
+
+	wait_event_interruptible(cb->sem, cb->state >= SYNC_RECEIVED);
+	if (cb->state != SYNC_RECEIVED) {
+		printk(KERN_ERR "synchronous comm not received from server: state %d\n", cb->state);
+		return -1;
+	}
+
+	if (cb->req_type == 1) {
+		return -2; // no free page on remote
+	}
+
+	*slab = (unsigned int)cb->slab;
+	*pgoff = (unsigned int)cb->pgoff;
+
+	return 0;
+}
+
+int server_tell_munmap(unsigned long munmap_va, unsigned int *slabs, unsigned int *pgoffs, \
+		unsigned int cnt) {
+
+	int ret = 0;
+	struct memory_cb *cb = gcb;
+	struct ib_recv_wr *bad_recv_wr;
+	struct ib_send_wr *bad_send_wr;
+
+	memory_comm_send_multi(1, munmap_va, slabs, pgoffs, cnt);
+
+	ret	= ib_post_send(cb->qp, &cb->sq_wr, &bad_send_wr);
+	if (ret) {
+		printk(KERN_ERR "ib_post_send failed: %d\n", ret);
+		return -1;
+	}
+
+	ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_recv_wr);
+	if (ret) {
+		printk(KERN_ERR "ib_post_recv failed: %d\n", ret);
+		return -1;
+	}
+
+	wait_event_interruptible(cb->sem, cb->state >= SYNC_RECEIVED);
+	if (cb->state != SYNC_RECEIVED) {
+		printk(KERN_ERR "synchronous comm not received from server: state %d\n", cb->state);
+		return -1;
+	}
+
+	if (cb->req_type == 1) {
+		return -2; // munmap free failed on client
+	}
+
+	return 0;
 }
 
 static int memory_bind_server(struct memory_cb *cb) {
@@ -662,14 +845,12 @@ static int memory_run_server(struct memory_cb *cb) {
 		goto err2;
 	}
 
-	/*
 	// change send & recv buffers
 	cb->recv_sgl.addr = cb->recv_comm_dma_addr;
 	cb->recv_sgl.length = sizeof cb->recv_comm_buf;
 
 	cb->send_sgl.addr = cb->send_comm_dma_addr;
 	cb->send_sgl.length = sizeof cb->send_comm_buf;
-	*/
 
 	return ret;
 
@@ -735,7 +916,7 @@ static int memory_bind_client(struct memory_cb *cb) {
 
 static int memory_run_client(struct memory_cb *cb) {
 	
-	struct ib_recv_wr *bad_wr;
+	struct ib_send_wr *bad_wr;
 	int ret = 0;
 
 	ret = memory_bind_client(cb);
@@ -782,7 +963,7 @@ static int memory_run_client(struct memory_cb *cb) {
 		ret = -1;
 		goto err2;
 	}
-/*
+	
 	// change send & recv buffers
 	cb->recv_sgl.addr = cb->recv_comm_dma_addr;
 	cb->recv_sgl.length = sizeof cb->recv_comm_buf;
@@ -795,7 +976,7 @@ static int memory_run_client(struct memory_cb *cb) {
 	comm_cnt++; // increment comm_cnt
 	
 	kc_id = (struct task_struct *)kthread_run(kthread_client, NULL, "kthread_client");
-	*/
+	
 	return ret;
 
 err2:

@@ -38,10 +38,10 @@ enum test_state {
 	ADDR_RESOLVED,
 	ROUTE_RESOLVED,
 	CONNECTED,
-	RDMA_READY, // server
-	RDMA_COMPLETE, // server
-	SYNC_READY, // client
-	SYNC_RECEIVED, // client
+	RDMA_READY,
+	RDMA_COMPLETE,
+	SYNC_READY,
+	SYNC_RECEIVED,
 	/*
 	RDMA_READ_ADV,
 	RDMA_READ_COMPLETE,
@@ -62,8 +62,9 @@ struct memory_rdma_info {
 struct memory_comm_info {
 	uint32_t req_type;
 	uint64_t munmap_va;
-	uint32_t slab;
-	uint32_t pgoff;
+	uint32_t slab[CHUNK_SIZE];
+	uint32_t pgoff[CHUNK_SIZE];
+	uint32_t cnt;
 };
 
 /* RDMA control block struct */
@@ -121,8 +122,9 @@ struct memory_cb {
 
 	uint32_t req_type;
 	uint64_t munmap_va;
-	uint32_t slab;
-	uint32_t pgoff;
+	uint32_t slab[CHUNK_SIZE];
+	uint32_t pgoff[CHUNK_SIZE];
+	uint32_t cnt;
 
 	/* Connection manager */
 	struct rdma_cm_id *cm_id;		// connection on client, listener on server
@@ -131,5 +133,7 @@ struct memory_cb {
 
 int memory_rdma_init(char *cmd);
 void memory_rdma_exit(void);
-void server_rdma_write(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff);
-void server_rdma_read(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff);
+int server_rdma_write(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff);
+int server_rdma_read(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff);
+int server_ask_free(unsigned int *slab, unsigned int *pgoff);
+int server_tell_munmap(unsigned long munmap_va, unsigned int *slabs, unsigned int *pgoffs, unsigned int cnt);

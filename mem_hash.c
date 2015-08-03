@@ -1,13 +1,13 @@
 #include "mem_hash.h"
 
-static struct remote_map *rm_ht[HASH_SIZE];
-static struct mmap_page *mp_ht[MAX_MMAPS];
+static struct remote_map *rm_ht[RM_HT_SIZE];
+static struct mmap_page *mp_ht[MP_HT_SIZE];
 
 void rm_ht_init(void) {
 	
 	unsigned long i;
 
-	for (i = 0; i < HASH_SIZE; i++) {
+	for (i = 0; i < RM_HT_SIZE; i++) {
 		rm_ht[i] = NULL;
 	}
 }
@@ -16,123 +16,153 @@ void mp_ht_init(void) {
 	
 	unsigned long i;
 	
-	for (i = 0; i < MAX_MMAPS; i++) {
+	for (i = 0; i < MP_HT_SIZE; i++) {
 		mp_ht[i] = NULL;
 	}
 }
 
 unsigned long rm_ht_hash(unsigned long user_va) {
 
-	return user_va % HASH_SIZE;
+	return user_va % RM_HT_SIZE;
 }
 
-unsigned long mp_ht_hash(unsigned long id) {
+unsigned long mp_ht_hash(unsigned long mmap_va) {
 
-	return id % MAX_MMAPS;
+	return mmap_va % MP_HT_SIZE;
 }
 
 struct remote_map *rm_ht_get(unsigned long user_va) {
 
-	struct remote_map *np;
+	struct remote_map *rm;
 
-	for (np = rm_ht[rm_ht_hash(user_va)]; np != NULL; np = np->next) {
-		if (user_va == np->user_va)
-			return np;
+	for (rm = rm_ht[rm_ht_hash(user_va)]; rm != NULL; rm = rm->next) {
+		if (user_va == rm->user_va)
+			return rm;
 	}
 	
 	return NULL;
 }
 
-struct mmap_page *mp_ht_get(unsigned long id) {
+struct mmap_page *mp_ht_get(unsigned long mmap_va) {
 	
-	struct mmap_page *np;
+	struct mmap_page *mp;
 
-	for (np = mp_ht[mp_ht_hash(id)]; np != NULL; np = np->next) {
-		if (id == np->id)
-			return np;
+	for (mp = mp_ht[mp_ht_hash(mmap_va)]; mp != NULL; mp = mp->next) {
+		if (mmap_va == mp->mmap_va)
+			return mp;
 	}
 	
 	return NULL;
 }
 
-int rm_ht_put(unsigned long user_va, int node, int slab_no, int slab_pgoff, struct list_node *ln) {
+int rm_ht_put(int valid, unsigned long user_va, int node, \
+		int slab_no, int slab_pgoff, struct local_page *lp) {
 
-	struct remote_map *np;
+	struct remote_map *rm;
 	unsigned long hashval;
 
-	if ((np = rm_ht_get(user_va)) == NULL) {
-		np = (struct remote_map *) kmalloc(sizeof(struct remote_map), GFP_KERNEL);
-		if (np == NULL)
+	if ((rm = rm_ht_get(user_va)) == NULL) {
+		rm = (struct remote_map *) kmalloc(sizeof(struct remote_map), GFP_KERNEL);
+		if (rm == NULL)
 			return -1;
 		hashval = rm_ht_hash(user_va);
-		np->next = rm_ht[hashval];
-		np->user_va = user_va;
-		np->node = node;
-		np->slab_no = slab_no;
-		np->slab_pgoff = slab_pgoff;
-		np->ln = ln;
-		rm_ht[hashval] = np;
+		rm->next = rm_ht[hashval];
+		rm->valid = 1;
+		rm->user_va = user_va;
+		rm->node = node;
+		rm->slab_no = slab_no;
+		rm->slab_pgoff = slab_pgoff;
+		rm->lp = lp;
+		rm_ht[hashval] = rm;
 	}
 	else {
-		np->node = node;
-		np->slab_no = slab_no;
-		np->slab_pgoff = slab_pgoff;
+		if (valid == 0) {
+			rm->valid = 0;
+		}
+		else {
+			rm->valid = 1;
+			rm->node = node;
+			rm->slab_no = slab_no;
+			rm->slab_pgoff = slab_pgoff;
+			rm->lp = lp;
+		}
 	}
 
 	return 0;
 }
 
-int mp_ht_put(unsigned long id, int slab_no, int slab_pgoff, struct list_node *ln) {
+int mp_ht_add_mmap(unsigned long mmap_va, int npages, void* vma) {
 
-	struct mmap_page *np = mp_ht_get(id);
-	struct page_node *temp;
-	unsigned long hashval;
+	if (mp_ht_get(mmap_va) == NULL) {
+		struct mmap_page *mp = (struct mmap_page *)kmalloc(sizeof(struct mmap_page), GFP_KERNEL);
+		if (mp == NULL)
+			return -1;
+		unsigned long hashval = mp_ht_hash(mmap_va);
+		mp->next = mp_ht[hashval];
+		mp->mmap_va = mmap_va;
+		mp->npages = npages;
+		mp->vma = vma;
+		INIT_LIST_HEAD(&(mp->list));
+		mp_ht[hashval] = mp;
+	}
 
-	if (np == NULL) { // first insert of id
-		np = (struct mmap_page *) kmalloc(sizeof(struct mmap_page), GFP_KERNEL);
-		if (np == NULL)
-			return -1;
-		hashval = mp_ht_hash(id);
-		np->next = mp_ht[hashval];
-		np->id = id;
-		INIT_LIST_HEAD(&(np->list));
-		temp = (struct page_node *) kmalloc(sizeof(struct page_node), GFP_KERNEL);
-		if (temp == NULL)
-			return -1;
-		temp->slab_no = slab_no;
-		temp->slab_pgoff = slab_pgoff;
-		temp->ln = ln;
-		list_add(&(temp->list), &(np->list));
-		mp_ht[hashval] = np;
-	}
-	else { // add new page
-		temp = (struct page_node *) kmalloc(sizeof(struct page_node), GFP_KERNEL);
-		if (temp == NULL)
-			return -1;
-		temp->slab_no = slab_no;
-		temp->slab_pgoff = slab_pgoff;
-		temp->ln = ln;
-		list_add(&(temp->list), &(np->list));
-	}
+	return 0;
+}	
+
+int mp_ht_add_page(unsigned long mmap_va, unsigned long user_va, struct local_page *lp) {
+
+	struct mmap_page *mp = mp_ht_get(mmap_va);
+	if (mp == NULL)
+		return -1;
+	struct page_node *pn = (struct page_node *)kmalloc(sizeof(struct page_node), GFP_KERNEL);
+	if (pn == NULL)
+		return -1;
+	pn->user_va = user_va;
+	pn->lp = lp;
+	list_add(&(pn->list), &(mp->list));
 
 	return 0;
 }
 
-int mp_ht_del(unsigned long id, int slab_no, int slab_pgoff) {
+int mp_ht_change_lp(unsigned long mmap_va, unsigned long user_va, struct local_page *lp) {
 
-	struct mmap_page *np;
+	struct mmap_page *mp = mp_ht_get(mmap_va);
+	if (mp == NULL)
+		return -1;
 	struct list_head *lh;
 	struct page_node *pn;
 
-	if ((np = mp_ht_get(id)) == NULL) {
+	if (list_empty(&(mp->list)))
+		return -1;
+	else {
+		for (lh = (mp->list).next; lh != &(mp->list); lh = lh->next) {
+			pn = list_entry(lh, struct page_node, list);
+			if (pn->user_va == user_va) {
+				pn->lp = lp;
+				return 0;
+			}
+		}
+	}
+	
+	return -1;
+}
+
+/*
+int mp_ht_del_page(unsigned long user_va, int slab_no, int slab_pgoff) {
+
+	struct mmap_page *mp;
+	struct list_head *lh;
+	struct page_node *pn;
+
+	if ((mp = mp_ht_get(user_va)) == NULL) {
 		return -1;
 	}
 	else {
-		if (list_empty(&(np->list))) {
+		if (list_empty(&(mp->list))) {
 			return -1;
 		}
 		else {
-			for (lh = (np->list).next; lh != &(np->list); lh = lh->next) {
+			for (lh = (mp->list).next; lh != &(mp->list); lh = lh->next) {
 				pn = list_entry(lh, struct page_node, list);
 				if ((pn->slab_no == slab_no) && (pn->slab_pgoff == slab_pgoff)) {
 					list_del(lh);
@@ -145,18 +175,19 @@ int mp_ht_del(unsigned long id, int slab_no, int slab_pgoff) {
 
 	return -1;
 }
+*/
 
 
 void rm_ht_destroy(void) {
 
-	struct remote_map *np, *temp;
+	struct remote_map *rm, *temp;
 	int i;
 
-	for (i = 0; i < HASH_SIZE; i++) {
-		if ((np = rm_ht[i]) != NULL) {
-			while (np != NULL) {
-				temp = np;
-				np = np->next;
+	for (i = 0; i < RM_HT_SIZE; i++) {
+		if ((rm = rm_ht[i]) != NULL) {
+			while (rm != NULL) {
+				temp = rm;
+				rm = rm->next;
 				kfree(temp);
 			}
 		}
@@ -170,7 +201,7 @@ void mp_ht_destroy(void) {
 	struct page_node *pn;
 	int i;
 
-	for (i = 0; i < MAX_MMAPS; i++) {
+	for (i = 0; i < MP_HT_SIZE; i++) {
 		if ((mp = mp_ht[i]) != NULL) {
 			while (mp != NULL) {
 				temp_mp = mp;

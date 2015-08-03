@@ -1,38 +1,41 @@
 #include "mem_driver.h"
 
-#define HASH_SIZE NPAGES
-#define MAX_MMAPS 1024 // Maximum number of mmaps
+#define RM_HT_SIZE NPAGES
+#define MP_HT_SIZE 1024
 
 /* Remote map structure. Only exists for remote pages */
 struct remote_map {
 	struct remote_map *next; // for collision
-	unsigned long user_va; // user's mmapped virtual address
-	int node; // which remote node?
-	int slab_no; // remote slab number
-	int slab_pgoff; // remote page offset in slab
-	struct list_node *ln; // pointer to list_node
+	int valid; 
+	unsigned long user_va;
+	int node;
+	int slab_no;
+	int slab_pgoff;
+	struct local_page *lp;
 };
 
 /* Mmapped page structure */
 struct mmap_page {
-	struct mmap_page *next;
-	unsigned long id;
+	struct mmap_page *next; // for collision
+	unsigned long mmap_va;
+	unsigned long npages;
+	void *vma;
 	struct list_head list;
 };
 
 struct page_node {
 	struct list_head list;
-	int slab_no; // only for remote
-	int slab_pgoff; // only for remote
-	struct list_node *ln; // only for local
+	unsigned long user_va;
+	struct local_page *lp;
 };
 
 void rm_ht_init(void);
 void mp_ht_init(void);
 struct remote_map *rm_ht_get(unsigned long user_va);
-struct mmap_page *mp_ht_get(unsigned long id);
-int rm_ht_put(unsigned long user_va, int node, int slab_no, int slab_pgoff, struct list_node *ln);
-int mp_ht_put(unsigned long id, int slab_no, int slab_pgoff, struct list_node *ln);
-int mp_ht_del(unsigned long id, int slab_no, int slab_pgoff);
+struct mmap_page *mp_ht_get(unsigned long mmap_va);
+int rm_ht_put(int valid, unsigned long user_va, int node, int slab_no, int slab_pgoff, struct local_page *lp);
+int mp_ht_add_mmap(unsigned long mmap_va, int npages, void* vma);
+int mp_ht_add_page(unsigned long mmap_va, unsigned long user_va, struct local_page *lp);
+int mp_ht_change_lp(unsigned long mmap_va, unsigned long user_va, struct local_page *lp);
 void rm_ht_destroy(void);
 void mp_ht_destroy(void);
