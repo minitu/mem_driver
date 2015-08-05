@@ -133,7 +133,9 @@ struct memory_cb {
 
 int memory_rdma_init(char *cmd);
 void memory_rdma_exit(void);
-int server_rdma_write(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff);
-int server_rdma_read(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff);
+int server_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
+		unsigned int remote_slab, unsigned int remote_pgoff);
+int server_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
+		unsigned int remote_slab, unsigned int remote_pgoff);
 int server_ask_free(unsigned int *slab, unsigned int *pgoff);
 int server_tell_munmap(unsigned long munmap_va, unsigned int *slabs, unsigned int *pgoffs, unsigned int cnt);

@@ -55,8 +55,8 @@ struct mmap_page *mp_ht_get(unsigned long mmap_va) {
 	return NULL;
 }
 
-int rm_ht_put(int valid, unsigned long user_va, int node, \
-		int slab_no, int slab_pgoff, struct local_page *lp) {
+int rm_ht_put(unsigned int valid, unsigned long user_va, unsigned int node, \
+		unsigned int slab_no, unsigned int slab_pgoff, struct local_page *lp) {
 
 	struct remote_map *rm;
 	unsigned long hashval;

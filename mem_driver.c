@@ -17,7 +17,7 @@
 #include <asm/uaccess.h>
 
 #define DEBUG 1 // set for debug output
-#define USE_RDMA 0 // set to use RDMA
+#define USE_RDMA 1 // set to use RDMA
 #define REMOVE 0
 
 #if(USE_RDMA)
@@ -92,13 +92,46 @@ module_exit(memory_exit);
 /* Module parameter */
 module_param(cmd, charp, 0000);
 
+void print_lists(void) {
+
+	struct list_head *lh;
+	struct local_page *lp;
+
+	printk("<free list>\n");
+	lh = &free_list;
+	if (list_empty(lh)) {
+		printk("empty\n");
+	}
+	else {
+		for (lh = lh->next; lh != &free_list; lh = lh->next) {
+			lp = list_entry(lh, struct local_page, list);
+			printk("slab: %d, pgoff: %d\n", lp->slab_no, lp->slab_pgoff);
+		}
+	}
+	
+	printk("<alloc list>\n");
+	lh = &alloc_list;
+	if (list_empty(lh)) {
+		printk("empty\n");
+	}
+	else {
+		for (lh = lh->next; lh != &alloc_list; lh = lh->next) {
+			lp = list_entry(lh, struct local_page, list);
+			printk("slab: %d, pgoff: %d\n", lp->slab_no, lp->slab_pgoff);
+		}
+	}
+
+}
+
 void list_destroy(void) {
 
 	struct list_head *temp;
 
 	// ensure alloc_list is not empty
 	if (list_empty(&alloc_list)) {
+#if(DEBUG)
 		printk("alloc_list empty\n");
+#endif
 		goto free;
 	}
 
@@ -112,7 +145,9 @@ void list_destroy(void) {
 free:
 	// ensure free_list is not empty
 	if (list_empty(&free_list)) {
+#if(DEBUG)
 		printk("free_list empty\n");
+#endif
 		return;
 	}
 
@@ -213,7 +248,7 @@ int memory_open(struct inode *inode, struct file *filp) {
 	int ret;
 	unsigned long i, j;
 	unsigned long temp_succ = -1;
-#if(REMOVE)
+
 	/* Initialize hash tables */
 	rm_ht_init();
 	mp_ht_init();
@@ -240,24 +275,9 @@ int memory_open(struct inode *inode, struct file *filp) {
 		}
 	}
 
-#if(DEBUG)
-	/*
-	struct list_head *lh;
-	struct local_page *lp;
-	lh = &free_list;
-	if (!list_empty(lh)) {
-		printk("<traversing free list>\n");
-		for (lh = lh->next; lh != &free_list; lh = lh->next) {
-			lp = list_entry(lh, struct local_page, list);
-			printk("slab: %d, pgoff: %d\n", lp->slab_no, lp->slab_pgoff);
-		}
-	}
-	*/
-#endif
-
 	/* Initialize mmap size */
 	mmap_pages = 0;
-#endif
+	
 	return 0;
 
 fail:
@@ -268,14 +288,13 @@ int memory_release(struct inode *inode, struct file *filp) {
 
 	printk("memory release\n");
 
-#if(REMOVE)
 	/* Destroy lists */
 	list_destroy();
 
 	/* Destroy hash tables */
 	rm_ht_destroy();
 	mp_ht_destroy();
-#endif
+
 	return 0;
 }
 
@@ -325,31 +344,6 @@ ssize_t memory_mmap(struct file *flip, struct vm_area_struct *vma) {
 	// add hash table entry
 	mp_ht_add_mmap(vma->vm_start, npages, (void*)vma);
 
-	/*
-#if(USE_RDMA)
-	unsigned int slab, pgoff;
-	int ret;
-
-	ret = server_ask_free(&slab, &pgoff);
-	if (ret < 0) {
-		printk("server_ask_free error: %d\n", ret);
-	}
-	ret = server_rdma_write(0, 0, slab, pgoff);
-	if (ret < 0) {
-		printk("server_rdma_write error: %d\n", ret);
-	}
-
-	ret = server_ask_free(&slab, &pgoff);
-	if (ret < 0) {
-		printk("server_ask_free error: %d\n", ret);
-	}
-	ret = server_rdma_write(0, 0, slab, pgoff);
-	if (ret < 0) {
-		printk("server_rdma_write error: %d\n", ret);
-	}
-#endif
-*/
-
 	// vma setup
 	vma->vm_ops = &memory_vm_ops;
 	vma->vm_flags |= VM_IO;
@@ -369,7 +363,8 @@ void memory_vma_close(struct vm_area_struct *vma) {
 
 int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 
-	int ret;
+	int ret = 0;
+	int evicted = 0;
 	unsigned long user_va = vmf->virtual_address;
 	unsigned long mmap_va = vma->vm_start;
 	
@@ -380,6 +375,22 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 #endif
 
 	down(&sem);
+
+	/* Invalidate previous eviction record */
+	struct remote_map *remote_rm = rm_ht_get(user_va);
+
+	if (remote_rm == NULL) { // has no eviction record -> first fault
+	} else if (!(remote_rm->valid)) { // has an invalid eviction record -> first fault
+	} else if (remote_rm->node != 1) { // was evicted before
+		evicted = 1; // set flag
+		
+		// invalidate eviction record
+		ret = rm_ht_put(0, user_va, 0, 0, 0, 0);
+		if (ret < 0) {
+			printk("rm_ht_put fail: %d\n", ret);
+			goto out;
+		}
+	}
 
 	/* Allocate a page for the faulted page */
 	struct page *pp;
@@ -403,13 +414,17 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 		// move to alloc_list
 		list_del_init(free_lh);
 		list_add(free_lh, &alloc_list);
+
+#if(DEBUG)
+		print_lists();
+#endif
 	}
 	else { // no free page, evict
 		// get to-be evicted page (FIFO)
 #if(DEBUG)
 		printk("no free page, evict\n");
 #endif
-		int remote_slab_no, remote_pgoff;
+		unsigned int remote_slab_no, remote_pgoff;
 		struct list_head *evict_lh = alloc_list.prev;
 		struct local_page *evict_lp = list_entry(evict_lh, struct local_page, list);
 		local_lp = evict_lp;
@@ -432,7 +447,7 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 
 		// save page info in rm_ht
 		// TODO: need to change node
-		if (rm_ht_put(1, user_va, 2, remote_slab_no, remote_pgoff, evict_lp) < 0) {
+		if (rm_ht_put(1, evict_lp->user_va, 2, remote_slab_no, remote_pgoff, evict_lp) < 0) {
 			printk("out of memory during rm_ht_put\n");
 			ret = VM_FAULT_OOM;
 			goto out;
@@ -449,23 +464,13 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 		get_page(vmf->page);
 	}
 
-	/* Check if page was evicted before */
-	struct remote_map *remote_rm = rm_ht_get(user_va);
+#if(DEBUG)
+	printk("local_lp: %p, slab_no: %u, slab_pgoff: %u\n", local_lp, local_lp->slab_no, local_lp->slab_pgoff);
+#endif
 
-	if (remote_rm == NULL || !(remote_rm->valid)) { // has no eviction record -> first fault
-		ret = mp_ht_add_page(mmap_va, user_va, local_lp);
-		if (ret < 0) {
-			printk("mp_ht_add_page fail: %d\n", ret);
-			goto out;
-		}
-	} else if (remote_rm->node != 1) { // was evicted before
-#if(USE_RDMA)
-		// invalidate remote_map & change local_page pointer
-		ret = rm_ht_put(0, user_va, 0, 0, 0, 0);
-		if (ret < 0) {
-			printk("rm_ht_put fail: %d\n", ret);
-			goto out;
-		}
+	/* If evicted before, invalidate remote map & change local_page pointer */
+	if (evicted) { // was evicted before
+		// change local_page pointer
 		ret = mp_ht_change_lp(mmap_va, user_va, local_lp);
 		if (ret < 0) {
 			printk("mp_ht_change_lp fail: %d\n", ret);
@@ -473,6 +478,7 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 		}
 
 		// RDMA read
+#if(USE_RDMA)
 		ret = server_rdma_read(local_lp->slab_no, local_lp->slab_pgoff, \
 				remote_rm->slab_no, remote_rm->slab_pgoff);
 		if (ret < 0) {
@@ -480,8 +486,16 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 			goto out;
 		}
 #endif
+	} else { // first fault
+		// add the page to mmap structure
+		ret = mp_ht_add_page(mmap_va, user_va, local_lp);
+		if (ret < 0) {
+			printk("mp_ht_add_page fail: %d\n", ret);
+			goto out;
+		}
 	}
 
+	up(&sem);
 	return 0;
 
 out:

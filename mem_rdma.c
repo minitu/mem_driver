@@ -604,7 +604,8 @@ static void memory_format_send(struct memory_cb *cb) {
 	}
 }
 
-int server_rdma_write(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff) {
+int server_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
+		unsigned int remote_slab, unsigned int remote_pgoff) {
 
 	struct memory_cb *cb = gcb;
 	struct ib_send_wr *bad_wr;
@@ -629,7 +630,7 @@ int server_rdma_write(int local_slab, int local_pgoff, int remote_slab, int remo
 	}
 	cb->rdma_sq_wr.next = NULL;
 
-	printk("server posted rdma write req: %d.%d -> %d.%d\n", \
+	printk("server posted rdma write req: %u.%u -> %u.%u\n", \
 			local_slab, local_pgoff, remote_slab, remote_pgoff);
 
 	/* Wait for read completion */
@@ -646,7 +647,8 @@ int server_rdma_write(int local_slab, int local_pgoff, int remote_slab, int remo
 	return 0;
 }
 
-int server_rdma_read(int local_slab, int local_pgoff, int remote_slab, int remote_pgoff) {
+int server_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
+		unsigned int remote_slab, unsigned int remote_pgoff) {
 	
 	struct memory_cb *cb = gcb;
 	struct ib_send_wr *bad_wr;
@@ -672,7 +674,7 @@ int server_rdma_read(int local_slab, int local_pgoff, int remote_slab, int remot
 	}
 	cb->rdma_sq_wr.next = NULL;
 
-	printk("server posted rdma read req: %d.%d <- %d.%d\n", \
+	printk("server posted rdma read req: %u.%u <- %u.%u\n", \
 			local_slab, local_pgoff, remote_slab, remote_pgoff);
 
 	/* Wait for read completion */
@@ -733,8 +735,8 @@ int server_ask_free(unsigned int *slab, unsigned int *pgoff) {
 		return -2; // no free page on remote
 	}
 
-	*slab = (unsigned int)cb->slab;
-	*pgoff = (unsigned int)cb->pgoff;
+	*slab = (unsigned int)cb->slab[0];
+	*pgoff = (unsigned int)cb->pgoff[0];
 
 	return 0;
 }
