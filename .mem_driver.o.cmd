@@ -637,7 +637,7 @@ deps_/media/nfs/mem_driver/mem_driver.o := \
   include/asm-generic/delay.h \
   /usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/asm/tlbflush.h \
   /usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/asm/cputype.h \
-  /media/nfs/mem_driver/mem_rdma.h \
+  /media/nfs/mem_driver/mem_driver.h \
   include/linux/slab.h \
     $(wildcard include/config/slab/debug.h) \
     $(wildcard include/config/failslab.h) \
@@ -650,6 +650,9 @@ deps_/media/nfs/mem_driver/mem_driver.o := \
   include/linux/slub_def.h \
     $(wildcard include/config/slub/stats.h) \
     $(wildcard include/config/memcg/kmem.h) \
+  /media/nfs/mem_driver/mem_hash.h \
+  /media/nfs/mem_driver/mem_ioctl.h \
+  /media/nfs/mem_driver/mem_rdma.h \
   include/linux/inet.h \
   include/linux/pci-dma.h \
   include/linux/scatterlist.h \
@@ -657,7 +660,6 @@ deps_/media/nfs/mem_driver/mem_driver.o := \
   arch/arm64/include/generated/asm/scatterlist.h \
   include/asm-generic/scatterlist.h \
     $(wildcard include/config/need/sg/dma/length.h) \
-  /media/nfs/mem_driver/mem_driver.h \
   include/rdma/ib_verbs.h \
   include/linux/device.h \
     $(wildcard include/config/debug/devres.h) \
@@ -935,8 +937,6 @@ deps_/media/nfs/mem_driver/mem_driver.o := \
   include/rdma/ib_pack.h \
   include/rdma/ib_sa.h \
   include/rdma/ib_mad.h \
-  /media/nfs/mem_driver/mem_hash.h \
-  /media/nfs/mem_driver/mem_ioctl.h \
 
 /media/nfs/mem_driver/mem_driver.o: $(deps_/media/nfs/mem_driver/mem_driver.o)
 

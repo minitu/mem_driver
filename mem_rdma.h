@@ -34,21 +34,13 @@
 	 and the client or server */
 enum test_state {
 	IDLE = 1,
-	CONNECT_REQUEST,
-	ADDR_RESOLVED,
-	ROUTE_RESOLVED,
-	CONNECTED,
-	RDMA_READY,
-	RDMA_COMPLETE,
-	SYNC_READY,
-	SYNC_RECEIVED,
-	/*
-	RDMA_READ_ADV,
-	RDMA_READ_COMPLETE,
-	RDMA_WRITE_ADV,
-	RDMA_WRITE_COMPLETE,
-	*/
-	ERROR
+	CONNECT_REQUEST, // 2
+	ADDR_RESOLVED, // 3
+	ROUTE_RESOLVED, // 4
+	CONNECTED, // 5
+	COMM_READY, // 6
+	COMM_COMPLETE, // 7
+	ERROR // 8
 };
 
 /* RDMA info */
@@ -138,4 +130,4 @@ int server_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
 int server_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
 		unsigned int remote_slab, unsigned int remote_pgoff);
 int server_ask_free(unsigned int *slab, unsigned int *pgoff);
-int server_tell_munmap(unsigned long munmap_va, unsigned int *slabs, unsigned int *pgoffs, unsigned int cnt);
+int server_tell_free(unsigned long munmap_va, unsigned int *slabs, unsigned int *pgoffs, unsigned int cnt);

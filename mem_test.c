@@ -36,6 +36,9 @@ int main()
 	test_addr[1][1024] = 4;
 	test_addr[1][2048] = 5;
 	printf("test_addr[0][0]: %d\n", test_addr[0][0]);
+	my_munmap(fd, test_addr[1], sizeof(int) * 1024 * 3);
+	printf("test_addr[0][1024]: %d\n", test_addr[0][1024]);
+	printf("test_addr[0][2048]: %d\n", test_addr[0][2048]);
 	/*
 	printf("test_addr[0][0]: %d\n", test_addr[0][0]);
 	printf("test_addr[0][1024]: %d\n", test_addr[0][1024]);
