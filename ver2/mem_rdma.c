@@ -2,6 +2,7 @@
 
 extern void* slabs[NSLABS];
 extern char avail[NSLABS][NPAGES_SLAB];
+extern int is_local;
 unsigned int cur_slab = 0;
 unsigned int cur_pgoff = 0;
 
@@ -1069,85 +1070,36 @@ err1:
 	return ret;
 }
 
-int memory_rdma_init(char *cmd) {
+int memory_rdma_init(void) {
+
+	printk("[%s]\n", __FUNCTION__);
 
 	struct memory_cb *cb;
-	int op;
 	int ret = 0;
-	char *optarg;
-	unsigned long optint;
 
 	gcb = kzalloc(sizeof(*cb), GFP_KERNEL);
 	cb = gcb;
 
-	cb->server = -1;
 	cb->state = IDLE;
 	cb->size = MEMORY_BUFSIZE;
 	cb->txdepth = MEMORY_SQ_DEPTH;
 	init_waitqueue_head(&cb->sem);
+	
+	if (is_local)
+		cb->server = 1;
+	else 
+		cb->server = 0;
 
-	/* Parse cmd */
-	char *token, *string, *tofree;
-	int i = 0;
+	cb->addr_str = kstrdup(LOCAL_IP, GFP_KERNEL);
+	in4_pton(LOCAL_IP, -1, cb->addr, -1, NULL);
+	cb->addr_type = AF_INET;
+	cb->port = htons(RDMA_PORT);
 
-	tofree = string = kstrdup(cmd, GFP_KERNEL);
-
-	while ((token = strsep(&string, ",")) != NULL) {
-		if (i == 0) { // server or client
-			if (strcmp(token, "server") == 0) {
-				cb->server = 1;
-#if(DEBUG)
-				printk("server\n");
-#endif
-			}
-			else if (strcmp(token, "client") == 0) {
-				cb->server = 0;
-#if(DEBUG)
-				printk("client\n");
-#endif
-			}
-		}
-		else if (i == 1) { // server's IP addr
-			cb->addr_str = kstrdup(token, GFP_KERNEL);
-			in4_pton(token, -1, cb->addr, -1, NULL);
-			cb->addr_type = AF_INET;
-#if(DEBUG)
-			printk("ipaddr (%s)\n", token);
-#endif
-		}
-		else if (i == 2) { // port
-			int _port;
-			kstrtoint(token, 0, &_port);
-			cb->port = htons(_port);
-#if(DEBUG)
-			printk("port %d\n", _port);
-#endif
-		}
-		else {
-			printk("<error> wrong command\n");
-			ret = -EINVAL;
-		}
-
-		i++;
-	}
-
-	kfree(tofree);
-
-	if (ret)
-		goto out;
-
-	if (cb->server == -1) {
-		printk("<error> must be either client or server\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* RDMA */
 	cb->cm_id = rdma_create_id(memory_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cb->cm_id)) {
 		ret = PTR_ERR(cb->cm_id);
 		printk("<error> rdma_create_id error %d\n", ret);
-		goto out;
+		goto out1;
 	}
 #if(DEBUG)
 	printk("created cm_id %p\n", cb->cm_id);
@@ -1164,13 +1116,11 @@ int memory_rdma_init(char *cmd) {
 	return ret;
 
 out2:
-#if(DEBUG)
-	printk("destroy cm_id %p\n", cb->cm_id);
-#endif
 	rdma_destroy_id(cb->cm_id);
-out:
-	printk("<error> in %s\n", __FUNCTION__);
+out1:
 	kfree(cb);
+	
+	printk("<error> in %s\n", __FUNCTION__);
 	return ret;
 }
 

@@ -1,5 +1,5 @@
-obj-m :=memory.o
-memory-y := mem_rdma.o mem_hash.o mem_driver.o
+obj-m := memory.o
+memory-y := mem_rdma.o mem_ds.o mem_driver.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules 

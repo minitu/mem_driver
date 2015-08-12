@@ -123,7 +123,7 @@ struct memory_cb {
 	struct rdma_cm_id *child_cm_id;	// connection on server side
 };
 
-int memory_rdma_init(char *cmd);
+int memory_rdma_init(void);
 void memory_rdma_exit(void);
 int server_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
 		unsigned int remote_slab, unsigned int remote_pgoff);

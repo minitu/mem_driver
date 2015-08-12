@@ -17,7 +17,7 @@
 #include <asm/uaccess.h>
 
 #include "mem_driver.h"
-#include "mem_hash.h"
+#include "mem_ds.h"
 #include "mem_ioctl.h"
 #if(USE_RDMA)
 #include "mem_rdma.h"
@@ -56,28 +56,23 @@ struct vm_operations_struct memory_vm_ops = {
 		fault: memory_fault,
 };
 
-/* Local page structure - exists for each page in slab */
-struct local_page {
-	struct list_head list;
-	unsigned long user_va;
-	unsigned int slab_no;
-	unsigned int slab_pgoff;
-	unsigned long slab_va;
-	struct vm_area_struct *vma;
-};
 
 /* Global variables */
-static char *cmd; // module parameter (server/client,IP,port)
+static char *type; // module parameter (local/remote)
+int is_local = -1;
+
 struct semaphore sem;
 struct task_struct *gt_id = NULL; // kthread
 extern struct memory_cb *gcb; // RDMA control block
-struct mm_struct *i_mm; // init_mm
+
 void* slabs[NSLABS];
 int slabs_succ = -1;
-char avail[NSLABS][NPAGES_SLAB]; // TODO: keep only for remote node
-// TODO: keep free_list & alloc_list only for local node
-struct list_head free_list;
-struct list_head alloc_list;
+
+struct local_page* avail_lp[NSLABS][NPAGES_SLAB]; // only for local node TODO
+
+struct list_head free_list[NNODES];
+struct list_head alloc_list[NNODES];
+
 unsigned long max_pages = NPAGES * NNODES; // max # of mmap'able pages
 unsigned long mmap_pages = 0; // # of current mmap'ed pages
 
@@ -86,99 +81,39 @@ module_init(memory_init);
 module_exit(memory_exit);
 
 /* Module parameter */
-module_param(cmd, charp, 0000);
+module_param(type, charp, 0000);
 
-/* Print free/alloc lists for debugging */
-void print_lists(void) {
-
-	struct list_head *lh;
-	struct local_page *lp;
-
-	printk("<free list>\n");
-	lh = &free_list;
-	if (list_empty(lh)) {
-		printk("empty\n");
-	}
-	else {
-		for (lh = lh->next; lh != &free_list; lh = lh->next) {
-			lp = list_entry(lh, struct local_page, list);
-			printk("slab: %d, pgoff: %d\n", lp->slab_no, lp->slab_pgoff);
-		}
-	}
-	
-	printk("<alloc list>\n");
-	lh = &alloc_list;
-	if (list_empty(lh)) {
-		printk("empty\n");
-	}
-	else {
-		for (lh = lh->next; lh != &alloc_list; lh = lh->next) {
-			lp = list_entry(lh, struct local_page, list);
-			printk("slab: %d, pgoff: %d\n", lp->slab_no, lp->slab_pgoff);
-		}
-	}
-
-}
-
-/* Destory free/alloc lists */
-void list_destroy(void) {
-
-	struct list_head *temp;
-
-	// ensure alloc_list is not empty
-	if (list_empty(&alloc_list)) {
-#if(DEBUG)
-		printk("alloc_list empty\n");
-#endif
-		goto free;
-	}
-
-	// free nodes
-	for (temp = alloc_list.next; temp != &alloc_list;) {
-		struct local_page *lp = list_entry(temp, struct local_page, list);
-		temp = temp->next;
-		kfree(lp);
-	}
-
-free:
-	// ensure free_list is not empty
-	if (list_empty(&free_list)) {
-#if(DEBUG)
-		printk("free_list empty\n");
-#endif
-		return;
-	}
-
-	// free nodes
-	for (temp = free_list.next; temp != &free_list;) {
-		struct local_page *lp = list_entry(temp, struct local_page, list);
-		temp = temp->next;
-		kfree(lp);
-	}
-}
-
-/* Driver init */
 int memory_init(void) {
 
-	printk("[memory_init]\n");
-
-	int i, j, ret;
-
+	printk("[%s]\n", __FUNCTION__);
 #if(DEBUG)
-	printk("cmd: %s\n", cmd);
+	printk("type: %s\n", type);
 	printk("max mmap pages: %lu\n", max_pages);
 #endif
 
-	i_mm = init_task.active_mm; // init_mm
+	unsigned int i, j, k;
+	int ret;
+
+	// check type
+	if (strcmp(type, "local") == 0)
+		is_local = 1;
+	else if (strcmp(type, "remote") == 0)
+		is_local = 0;
+	else {
+		printk("<error> invalid type: %s\n", type);
+		ret = -EINVAL;
+		goto fail1;
+	}
 
 	// register device
 	ret = register_chrdev(MEMORY_MAJOR, "memory", &memory_fops);
 	if (ret < 0) {
 		printk("<error> cannot obtain major number %d\n", MEMORY_MAJOR);
-		return ret;
+		goto fail1;
 	}
 
-	sema_init(&sem, 1); // initialize semaphore
+	// initialize semaphore
+	sema_init(&sem, 1);
 
 	// kmalloc slabs
 	for (i = 0; i < NSLABS; i++) {
@@ -186,23 +121,76 @@ int memory_init(void) {
 		if (slabs[i] == NULL) {
 			printk("<error> slab kmalloc failed: slabs[%d]\n", i);
 			ret = -ENOMEM;
-			goto fail;
+			goto fail2;
 		}
 		slabs_succ = i;
 	}
 
-	// initialize avail array
-	for (i = 0; i < NSLABS; i++) {
-		for (j = 0; j < NPAGES_SLAB; j++) {
-			avail[i][j] = 'f';
+	// intialize structures & lists TODO: too much memory?
+	if (is_local) {
+		for (i = 0; i < NNODES; i++) {
+			INIT_LIST_HEAD(&free_list[i]);
+			INIT_LIST_HEAD(&alloc_list[i]);
+		}
+
+		// local
+		struct local_page *temp_lp;
+		struct lp_node *temp_lpn;
+
+		for (i = 0; i < NSLABS; i++) {
+			for (j = 0; j < NPAGES_SLAB; j++) {
+				temp_lp = (struct local_page *)kmalloc(sizeof(struct local_page), GFP_KERNEL);
+				if (temp_lp == NULL) {
+					printk("<error> local_page kmalloc failed\n");
+					ret = -ENOMEM;
+					goto fail2;
+				}
+				temp_lp->user_va = 0;
+				temp_lp->slab_no = i;
+				temp_lp->slab_pgoff = j;
+				temp_lp->slab_va = slabs[i] + PAGE_SIZE * j;
+				temp_lp->vma = NULL;
+				avail_lp[i][j] = temp_lp;
+	
+				// add to free list
+				temp_lpn = (struct lp_node *)kmalloc(sizeof(struct lp_node), GFP_KERNEL);
+				if (temp_lpn == NULL) {
+					printk("<error> lp_node kmalloc failed\n");
+					ret = -ENOMEM;
+					goto fail2;
+				}
+				temp_lpn->lp = temp_lp;
+				list_add(&(temp_lpn->list), &free_list[0]);
+			}
+		}
+
+		// remote
+		struct remote_page *temp_rp;
+
+		for (i = 1; i < NNODES; i++) {
+			for (j = 0; j < NSLABS; j++) {
+				for (k = 0; k < NPAGES_SLAB; k++) {
+					temp_rp = (struct remote_page *)kmalloc(sizeof(struct remote_page), GFP_KERNEL);
+					if (temp_rp == NULL) {
+						printk("<error> remote_page kmalloc failed\n");
+						ret = -ENOMEM;
+						goto fail2;
+					}
+					temp_rp->slab_no = j;
+					temp_rp->slab_pgoff = k;
+	
+					// add to free list
+					list_add(&(temp_rp->list), &free_list[i]);
+				}
+			}
 		}
 	}
 
 #if(USE_RDMA)
 	// RDMA setup
-	ret = memory_rdma_init(cmd);
+	ret = memory_rdma_init();
 	if (ret < 0) {
-		goto fail;
+		goto fail3;
 	}
 #endif
 
@@ -211,20 +199,59 @@ int memory_init(void) {
 #endif
 	return 0;
 
-fail:
-	printk("<error> aborting insmod\n");
+fail3:
+	if (is_local) {
+		// kfree avail_lp
+		for (i = 0; i < NSLABS; i++) {
+			for (j = 0; j < NPAGES_SLAB; j++) {
+				kfree(avail_lp[i][j]);
+			}
+		}
+		
+		// kfree local free list
+		struct list_head *lh, *temp_lh;
+		if (!list_empty(&free_list[0])) {
+			for (lh = free_list[0].next; lh != &free_list[0];) {
+				temp_lh = lh;
+				lh = lh->next;
+				list_del(temp_lh);
+				kfree(list_entry(temp_lh, struct lp_node, list));
+			}
+		}
+
+		// kfree remote free lists
+		struct list_head *lh, *temp_lh;
+		for (i = 1; i < NNODES; i++) {
+			if (!list_empty(&free_list[i])) {
+				for (lh = free_list[i].next; lh != &free_list[i];) {
+					temp_lh = lh;
+					lh = lh->next;
+					list_del(temp_lh);
+					kfree(list_entry(temp_lh, struct remote_page, list));
+				}
+			}
+		}
+	}
+
+fail2:
+	// kfree slabs
 	for (i = 0; i <= slabs_succ; i++) {
 		kfree(slabs[i]);
 	}
+	
+	// unregister device
 	unregister_chrdev(MEMORY_MAJOR, "memory");
+
+fail1:
+	printk("<error> aborting insmod: %d\n", ret);
 	return ret;
 }
 
 void memory_exit(void) {
 
-	printk("[memory_exit]\n");
+	printk("[%s]\n", __FUNCTION__);
 
-	int i;
+	unsigned int i, j;
 
 #if(USE_RDMA)
 	// finish RDMA
@@ -234,6 +261,54 @@ void memory_exit(void) {
 	// kfree slabs
 	for (i = 0; i < NSLABS; i++) {
 		kfree(slabs[i]);
+	}
+
+	if (is_local) {
+		// kfree avail_lp
+		for (i = 0; i < NSLABS; i++) {
+			for (j = 0; j < NPAGES_SLAB; j++) {
+				kfree(avail_lp[i][j]);
+			}
+		}
+
+		// kfree local free & alloc lists
+		struct list_head *lh, *temp_lh;
+		if (!list_empty(&free_list[0])) {
+			for (lh = free_list[0].next; lh != &free_list[0];) {
+				temp_lh = lh;
+				lh = lh->next;
+				list_del(temp_lh);
+				kfree(list_entry(temp_lh, struct lp_node, list));
+			}
+		}
+		if (!list_empty(&alloc_list[0])) {
+			for (lh = alloc_list[0].next; lh != &alloc_list[0];) {
+				temp_lh = lh;
+				lh = lh->next;
+				list_del(temp_lh);
+				kfree(list_entry(temp_lh, struct lp_node, list));
+			}
+		}
+
+		// kfree remote free & alloc lists
+		for (i = 1; i < NNODES; i++) {
+			if (!list_empty(&free_list[i])) {
+				for (lh = free_list[i].next; lh != &free_list[i];) {
+					temp_lh = lh;
+					lh = lh->next;
+					list_del(temp_lh);
+					kfree(list_entry(temp_lh, struct remote_page, list));
+				}
+			}
+			if (!list_empty(&alloc_list[i])) {
+				for (lh = alloc_list[i].next; lh != &alloc_list[i];) {
+					temp_lh = lh;
+					lh = lh->next;
+					list_del(temp_lh);
+					kfree(list_entry(temp_lh, struct remote_page, list));
+				}
+			}
+		}
 	}
 
 	// unregister device
@@ -246,56 +321,42 @@ void memory_exit(void) {
 
 int memory_open(struct inode *inode, struct file *filp) {
 
-	printk("[memory_open]\n");
-
-	int ret;
-	unsigned int i, j;
+	printk("[%s]\n", __FUNCTION__);
 
 	// initialize hash tables
 	rm_ht_init();
-	mp_ht_init();
-
-	// initialize lists
-	INIT_LIST_HEAD(&alloc_list);
-	INIT_LIST_HEAD(&free_list);
-
-	// free list setup
-	for (i = 0; i < NSLABS; i++) {
-		for (j = 0; j < NPAGES_SLAB; j++) {
-			struct local_page *temp = (struct local_page *) kmalloc(sizeof(struct local_page), GFP_KERNEL);
-			if (temp == NULL) {
-				printk("<error> out of memory\n");
-				ret = -ENOMEM;
-				goto fail;
-			}
-			temp->user_va = 0;
-			temp->slab_no = i;
-			temp->slab_pgoff = j;
-			temp->slab_va = (unsigned long)slabs[i] + (unsigned long)(PAGE_SIZE * j);
-			temp->vma = NULL;	
-			list_add(&(temp->list), &free_list);
-		}
-	}
+	ma_ht_init();
 
 	// initialize mmap'ed size
 	mmap_pages = 0;
 	
 	return 0;
-
-fail:
-	return ret;
 }
 
 int memory_release(struct inode *inode, struct file *filp) {
 
-	printk("[memory_release]\n");
+	printk("[%s]\n", __FUNCTION);
 
-	/* Destroy lists */
-	list_destroy();
+	unsigned int i;
 
-	/* Destroy hash tables */
+	// destroy hash tables
 	rm_ht_destroy();
-	mp_ht_destroy();
+	ma_ht_destroy();
+
+	// move alloc_list entries to free_list
+	for (i = 0; i < NNODES; i++) {
+		struct list_head *lh = &alloc_list[i], *temp_lh;
+		if (!list_empty(lh)) {
+			for (lh = lh->next; lh != &alloc_list[i];) {
+				temp_lh = lh;
+				lh = lh->next;
+				list_del_init(temp_lh);
+				list_add(temp_lh, &free_list[i]);
+			}
+		}
+	}
+
+	// munmap all areas TODO
 
 	return 0;
 }
@@ -303,9 +364,7 @@ int memory_release(struct inode *inode, struct file *filp) {
 ssize_t memory_read(struct file *filp, char *buf, 
 		size_t count, loff_t *f_pos) { 
 
-#if(DEBUG)
-	printk("[memory_read]\n");
-#endif
+	printk("[%s]\n", __FUNCTION__);
 
 	return 0;
 }
@@ -313,19 +372,29 @@ ssize_t memory_read(struct file *filp, char *buf,
 ssize_t memory_write( struct file *filp, char *buf,
 		size_t count, loff_t *f_pos) {
 
-#if(DEBUG)
-	printk("[memory_write]\n");
-#endif
+	printk("[%s]\n", __FUNCTION__);
 
 	return 0;
 }
 
 ssize_t memory_mmap(struct file *flip, struct vm_area_struct *vma) {
 
+	printk("[%s]\n", __FUNCTION__);
 #if(DEBUG)
-	printk("[memory_mmap]\n");
 	printk("vma: %p\n", vma);
 #endif
+
+	unsigned long start = vma->vm_start;
+	unsigned long size = vma->vm_end - vma->vm_start;
+	unsigned long npages = size / PAGE_SIZE;
+	unsigned long leftover;
+	unsigned long npages_t;
+	unsigned long pfn;
+	int ret;
+	unsigned int i;
+	struct list_head *lh;
+	struct lp_node *lpn;
+	struct local_page *lp;
 
 	// check pgoff
 	if (vma->vm_pgoff != 0) {
@@ -333,24 +402,79 @@ ssize_t memory_mmap(struct file *flip, struct vm_area_struct *vma) {
 		return -EIO;
 	}
 
-	// check size
-	unsigned long size = vma->vm_end - vma->vm_start;
-	unsigned long npages = size / 4096;
 #if(DEBUG)
 	printk("vm: %p-%p\n", vma->vm_start, vma->vm_end);
-	printk("mmap size: %lu, # of pages: %lu\n", size, npages);
+	printk("requested mmap size: %lu bytes, %lu pages\n", size, npages);
 #endif
-	mmap_pages += npages;
-	if (mmap_pages > max_pages) {
+
+	// pad # of pages
+	if ((leftover = npages % NNODES) != 0) {
+		npages += (NNODES - leftover);
+	}
+#if(DEBUG)
+	printk("actual mmap size: %lu pages\n", npages);
+#endif
+
+	// check mmap limit
+	if (mmap_pages + npages > max_pages) {
 		printk("<error> mmap limit exceeded\n");
 		return -ENOMEM;
 	}
+	mmap_pages += npages;
 #if(DEBUG)
 	printk("# of pages left: %lu\n", max_pages - mmap_pages);
 #endif
-
+	
 	// add hash table entry
-	mp_ht_add_mmap(vma->vm_start, npages, (void*)vma);
+	ma_ht_add_mmap(vma->vm_start, npages, (void*)vma);
+
+	// find & link local free pages
+	npages_t = npages / NNODES;
+	lh = &free_list[0];
+
+	while (npages_t > 0) {
+		if (list_empty(&free_list[0])) {
+			printk("<error> local free list empty during mmap\n");
+			return -ENOMEM;
+		}
+		lh = lh->prev;
+		lpn = list_entry(lh, struct lp_node, list);
+		lp = lpn->lp;
+		pfn = virt_to_pfn(lp->slab_va);
+		if ((ret = remap_pfn_range(vma, start, pfn, PAGE_SIZE,
+						PAGE_SHARED)) < 0) {
+			return ret;
+		}
+		
+		ma_ht_add_page((void*)vma->vm_start, (void*)start, lp);
+
+		start += PAGE_SIZE;
+		npages_t -= 1;
+	}
+
+	// find remote free pages & save their info
+	unsigned int slab_no;
+	unsigned int slab_pgoff;
+	struct remote_page *rp;
+	
+	for (i = 1; i < NNODES; i++) {
+		npages_t = npages / NNODES;
+		lh = &free_list[i];
+		while (npages_t > 0) {
+			if (list_empty(&free_list[i])) {
+				printk("<error> remote free list empty during mmap\n");
+				return -ENOMEM;
+			}
+			lh = lh->prev;
+			rp = list_entry(lh, struct remote_node, list);
+			
+			ma_ht_add_page((void*)vma->vm_start, (void*)start, NULL);
+			rm_ht_add((void*)start, i, rp);
+
+			start += PAGE_SIZE;
+			npages_t -= 1;
+		}
+	}
 
 	// vma setup
 	vma->vm_ops = &memory_vm_ops;
@@ -363,14 +487,14 @@ ssize_t memory_mmap(struct file *flip, struct vm_area_struct *vma) {
 void memory_vma_open(struct vm_area_struct *vma) {
 
 #if(DEBUG)
-	printk("[memory_vma_open]\n");
+	printk("[%s]\n", __FUNCTION__);
 #endif
 }
 
 void memory_vma_close(struct vm_area_struct *vma) {
 
 #if(DEBUG)
-	printk("[memory_vma_close]\n");
+	printk("[%s]\n", __FUNCTION__);
 #endif
 }
 
@@ -382,7 +506,7 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 	unsigned long mmap_va = vma->vm_start;
 	
 #if(DEBUG)
-	printk("[memory_fault]\n");
+	printk("[%s]\n", __FUNCTION__);
 	printk("user_va: %p\n", user_va);
 	printk("vma: %p\n", vma);
 	printk("mmap_va: %p\n", mmap_va);
@@ -390,7 +514,33 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 
 	down(&sem);
 
-	/* Allocate a page for the faulted page */
+	// select & evict page
+	struct mmap_area *ma;
+	struct list_head *lh;
+	struct local_page *lp;
+	struct page *pp;
+
+	ma = ma_ht_get(mmap_va);
+	if (ma == NULL) {
+		printk("<error> ma_ht_get failure\n");
+		ret = VM_FAULT_OOM;
+		goto out;
+	}
+
+	lh = &(ma->list);
+	lh = lh->prev;
+	lp = list_entry(lh, struct local_page, list);
+	lp->user_va = user_va;
+	lp->vma = vma;
+	pp = virt_to_page(lp->slab_va);
+	vmf->page = pp;
+	get_page(vmf->page);
+	list_del_init(lh);
+	list_add(lh, &(ma->list));
+
+	// RDMA write TODO
+
+
 	struct page *pp;
 	struct local_page *local_lp;
 	
@@ -530,7 +680,7 @@ void memory_remove_pte(struct local_page *lp) {
 	struct mm_struct *del_mm = del_vma->vm_mm;
 
 #if(DEBUG)
-	printk("[memory_remove_pte]\n");
+	printk("[%s]\n", __FUNCTION__);
 	printk("del_user_va: %p\n", del_user_va);
 	printk("del_slab_va: %p\n", del_slab_va);
 	printk("del_pfn: %p\n", del_pfn);
@@ -586,6 +736,8 @@ void memory_remove_pte(struct local_page *lp) {
 
 int memory_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
 
+	printk("[%s]\n", __FUNCTION__);
+	
 	int ret = 0;
 	int i;
 	struct remote_map *rm;
@@ -601,10 +753,6 @@ int memory_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
 	unsigned int *nitems;
 	unsigned int leftover = 0;
 	struct munmap_info info;
-
-#if(DEBUG)
-	printk("[memory_ioctl]\n");
-#endif
 
 	switch(cmd) {
 		case 7:
