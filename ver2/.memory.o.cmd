@@ -1,1 +1,1 @@
-cmd_/media/nfs/mem_driver/ver2/memory.o := ld -EL    -r -o /media/nfs/mem_driver/ver2/memory.o /media/nfs/mem_driver/ver2/mem_rdma.o /media/nfs/mem_driver/ver2/mem_hash.o /media/nfs/mem_driver/ver2/mem_driver.o 
+cmd_/media/nfs/mem_driver/ver2/memory.o := ld -EL    -r -o /media/nfs/mem_driver/ver2/memory.o /media/nfs/mem_driver/ver2/mem_rdma.o /media/nfs/mem_driver/ver2/mem_ds.o /media/nfs/mem_driver/ver2/mem_driver.o 

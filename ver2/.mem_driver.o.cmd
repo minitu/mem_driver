@@ -650,7 +650,9 @@ deps_/media/nfs/mem_driver/ver2/mem_driver.o := \
   include/linux/slub_def.h \
     $(wildcard include/config/slub/stats.h) \
     $(wildcard include/config/memcg/kmem.h) \
-  /media/nfs/mem_driver/ver2/mem_hash.h \
+  /media/nfs/mem_driver/ver2/mem_ds.h \
+  include/linux/hashtable.h \
+  include/linux/hash.h \
   /media/nfs/mem_driver/ver2/mem_ioctl.h \
   /media/nfs/mem_driver/ver2/mem_rdma.h \
   include/linux/inet.h \
@@ -928,7 +930,6 @@ deps_/media/nfs/mem_driver/ver2/mem_driver.o := \
   include/uapi/linux/udp.h \
   include/net/if_inet6.h \
   include/net/ndisc.h \
-  include/linux/hash.h \
   include/net/ip.h \
   include/net/route.h \
   include/net/inetpeer.h \

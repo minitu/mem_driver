@@ -7,7 +7,7 @@
 #include <sys/ioctl.h>
 #include "mem_ioctl.h"
 
-#define NINT 256 * 1024 * 1024
+#define NINT 1024 * 1024 * 1024
 #define REMOTE 1
 
 int my_munmap(int fd, void *addr, size_t length) {
@@ -51,7 +51,7 @@ int main()
 #if(!REMOTE)
 	a = (int*)malloc(sizeof(int) * NINT);
 	for (i = 0; i < NINT; i++) {
-		a[i] = 2;
+		a[i] = 7;
 	}
 #else
 	// open device
@@ -64,7 +64,7 @@ int main()
 	// initialize matrices
 	a = (int*)mmap(NULL, sizeof(int) * NINT, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 	for (i = 0; i < NINT; i++) {
-		a[i] = 2;
+		a[i] = 7;
 	}
 
 	// close device

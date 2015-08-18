@@ -1,7 +1,6 @@
 #include "mem_rdma.h"
 
 extern void* slabs[NSLABS];
-extern char avail[NSLABS][NPAGES_SLAB];
 extern int is_local;
 unsigned int cur_slab = 0;
 unsigned int cur_pgoff = 0;
@@ -83,7 +82,8 @@ static int kthread_client(void *arg) {
 			return -1;
 		}
 
-		// TODO: handle server request
+		// handle server request
+		/*
 		switch(cb->req_type) {
 		case 0:
 #if(DEBUG)
@@ -156,6 +156,7 @@ found:
 			printk(KERN_ERR "invalid request! type %d\n", cb->req_type);
 			break;
 		}
+	*/
 
 		ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_send_wr);
 		if (ret) {
