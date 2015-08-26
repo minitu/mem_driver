@@ -82,7 +82,7 @@ int memory_init(void) {
 
 	printk("[%s]\n", __FUNCTION__);
 #if(DEBUG)
-	printk("cmd: %s\n", cmd);
+	printk("node: %d\n", node);
 	printk("max mmap pages: %lu\n", max_pages);
 #endif
 
@@ -498,9 +498,9 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 	
 	// RDMA write content
 #if(USE_RDMA)
-	ret = server_rdma_write(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
+	ret = client_rdma_write(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
 	if (ret < 0) {
-		printk("<error> server_rdma_write failure: %d\n", ret);
+		printk("<error> client_rdma_write failure: %d\n", ret);
 		ret = VM_FAULT_ERROR;
 		goto out;
 	}
@@ -522,9 +522,9 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 		lh = &(rp->list);
 
 #if(USE_RDMA)
-		ret = server_rdma_read(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
+		ret = client_rdma_read(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
 		if (ret < 0) {
-			printk("<error> server_rdma_read failure: %d\n", ret);
+			printk("<error> client_rdma_read failure: %d\n", ret);
 			ret = VM_FAULT_ERROR;
 			goto out;
 		}

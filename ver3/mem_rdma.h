@@ -61,7 +61,6 @@ struct memory_comm_info {
 
 /* RDMA control block struct */
 struct memory_cb {
-	//int server;						// 0 iff client
 	struct ib_cq *cq;				// completion queue
 	struct ib_pd *pd;				// protection domain
 	struct ib_qp *qp;				// queue pair
@@ -125,9 +124,7 @@ struct memory_cb {
 
 int memory_rdma_init(void);
 void memory_rdma_exit(void);
-int server_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
+int client_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
 		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff);
-int server_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
+int client_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
 		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff);
-//int server_ask_free(unsigned int *slab, unsigned int *pgoff);
-//int server_tell_free(unsigned long munmap_va, unsigned int *slabs, unsigned int *pgoffs, unsigned int cnt);
