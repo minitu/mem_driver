@@ -1,10 +1,9 @@
-cmd_/media/nfs/mem_driver/ver2/mem_ds.o := gcc -Wp,-MD,/media/nfs/mem_driver/ver2/.mem_ds.o.d  -nostdinc -isystem /usr/lib/gcc/aarch64-linux-gnu/4.8/include  -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include -Iarch/arm64/include/generated  -Iinclude -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/uapi -Iarch/arm64/include/generated/uapi -I/usr/src/linux-headers-3.13.0-40-generic/include/uapi -Iinclude/generated/uapi -include /usr/src/linux-headers-3.13.0-40-generic/include/linux/kconfig.h -Iubuntu/include  -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -fno-delete-null-pointer-checks -O2 -mgeneral-regs-only -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -DMODULE  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(mem_ds)"  -D"KBUILD_MODNAME=KBUILD_STR(memory)" -c -o /media/nfs/mem_driver/ver2/.tmp_mem_ds.o /media/nfs/mem_driver/ver2/mem_ds.c
+cmd_/media/nfs/mem_driver/ver3/mem_rdma.o := gcc -Wp,-MD,/media/nfs/mem_driver/ver3/.mem_rdma.o.d  -nostdinc -isystem /usr/lib/gcc/aarch64-linux-gnu/4.8/include  -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include -Iarch/arm64/include/generated  -Iinclude -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/uapi -Iarch/arm64/include/generated/uapi -I/usr/src/linux-headers-3.13.0-40-generic/include/uapi -Iinclude/generated/uapi -include /usr/src/linux-headers-3.13.0-40-generic/include/linux/kconfig.h -Iubuntu/include  -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -fno-delete-null-pointer-checks -O2 -mgeneral-regs-only -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -DMODULE  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(mem_rdma)"  -D"KBUILD_MODNAME=KBUILD_STR(memory)" -c -o /media/nfs/mem_driver/ver3/.tmp_mem_rdma.o /media/nfs/mem_driver/ver3/mem_rdma.c
 
-source_/media/nfs/mem_driver/ver2/mem_ds.o := /media/nfs/mem_driver/ver2/mem_ds.c
+source_/media/nfs/mem_driver/ver3/mem_rdma.o := /media/nfs/mem_driver/ver3/mem_rdma.c
 
-deps_/media/nfs/mem_driver/ver2/mem_ds.o := \
-  /media/nfs/mem_driver/ver2/mem_ds.h \
-  /media/nfs/mem_driver/ver2/mem_config.h \
+deps_/media/nfs/mem_driver/ver3/mem_rdma.o := \
+  /media/nfs/mem_driver/ver3/mem_rdma.h \
   include/linux/kernel.h \
     $(wildcard include/config/lbdaf.h) \
     $(wildcard include/config/preempt/voluntary.h) \
@@ -533,9 +532,378 @@ deps_/media/nfs/mem_driver/ver2/mem_ds.o := \
   include/uapi/linux/ptrace.h \
   include/uapi/linux/stat.h \
   include/linux/kref.h \
-  include/linux/hashtable.h \
+  include/linux/fs.h \
+    $(wildcard include/config/fs/posix/acl.h) \
+    $(wildcard include/config/quota.h) \
+    $(wildcard include/config/fsnotify.h) \
+    $(wildcard include/config/ima.h) \
+    $(wildcard include/config/debug/writecount.h) \
+    $(wildcard include/config/file/locking.h) \
+    $(wildcard include/config/fs/xip.h) \
+    $(wildcard include/config/migration.h) \
+  include/linux/kdev_t.h \
+  include/uapi/linux/kdev_t.h \
+  include/linux/dcache.h \
+  include/linux/rculist_bl.h \
+  include/linux/list_bl.h \
+  include/linux/bit_spinlock.h \
+  include/linux/lockref.h \
+    $(wildcard include/config/arch/use/cmpxchg/lockref.h) \
+  include/linux/path.h \
+  include/linux/list_lru.h \
+  include/linux/radix-tree.h \
+  include/linux/semaphore.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/fiemap.h \
+  include/linux/shrinker.h \
+  include/linux/migrate_mode.h \
+  include/linux/percpu-rwsem.h \
+  include/uapi/linux/fs.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/limits.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/ioctl.h \
+  arch/arm64/include/generated/asm/ioctl.h \
+  include/asm-generic/ioctl.h \
+  include/uapi/asm-generic/ioctl.h \
+  include/linux/quota.h \
+    $(wildcard include/config/quota/netlink/interface.h) \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/dqblk_xfs.h \
+  include/linux/dqblk_v1.h \
+  include/linux/dqblk_v2.h \
+  include/linux/dqblk_qtree.h \
+  include/linux/projid.h \
+  include/uapi/linux/quota.h \
+  include/linux/nfs_fs_i.h \
+  include/linux/fcntl.h \
+  include/uapi/linux/fcntl.h \
+  /usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/uapi/asm/fcntl.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/asm-generic/fcntl.h \
+  include/linux/proc_fs.h \
+  include/linux/vmalloc.h \
+  include/linux/mm.h \
+    $(wildcard include/config/mem/soft/dirty.h) \
+    $(wildcard include/config/x86.h) \
+    $(wildcard include/config/ppc.h) \
+    $(wildcard include/config/parisc.h) \
+    $(wildcard include/config/metag.h) \
+    $(wildcard include/config/ia64.h) \
+    $(wildcard include/config/ksm.h) \
+    $(wildcard include/config/debug/vm/rb.h) \
+    $(wildcard include/config/debug/pagealloc.h) \
+    $(wildcard include/config/hibernation.h) \
+    $(wildcard include/config/hugetlbfs.h) \
+  include/linux/debug_locks.h \
+    $(wildcard include/config/debug/locking/api/selftests.h) \
+  include/linux/range.h \
+  include/linux/file.h \
+  include/linux/page-flags.h \
+    $(wildcard include/config/pageflags/extended.h) \
+    $(wildcard include/config/arch/uses/pg/uncached.h) \
+    $(wildcard include/config/memory/failure.h) \
+    $(wildcard include/config/swap.h) \
+  include/linux/huge_mm.h \
+  include/linux/vmstat.h \
+    $(wildcard include/config/vm/event/counters.h) \
+  include/linux/vm_event_item.h \
+  include/linux/inet.h \
+  include/linux/delay.h \
+  arch/arm64/include/generated/asm/delay.h \
+  include/asm-generic/delay.h \
+  include/linux/pci-dma.h \
+  include/linux/scatterlist.h \
+    $(wildcard include/config/debug/sg.h) \
+  arch/arm64/include/generated/asm/scatterlist.h \
+  include/asm-generic/scatterlist.h \
+    $(wildcard include/config/need/sg/dma/length.h) \
+  include/linux/kthread.h \
+  /media/nfs/mem_driver/ver3/mem_config.h \
+  include/rdma/ib_verbs.h \
+  include/linux/device.h \
+    $(wildcard include/config/debug/devres.h) \
+    $(wildcard include/config/acpi.h) \
+    $(wildcard include/config/pinctrl.h) \
+    $(wildcard include/config/dma/cma.h) \
+    $(wildcard include/config/devtmpfs.h) \
+    $(wildcard include/config/sysfs/deprecated.h) \
+  include/linux/ioport.h \
+  include/linux/klist.h \
+  include/linux/pinctrl/devinfo.h \
+    $(wildcard include/config/pm.h) \
+  include/linux/pm.h \
+    $(wildcard include/config/vt/console/sleep.h) \
+    $(wildcard include/config/pm/runtime.h) \
+    $(wildcard include/config/pm/clk.h) \
+    $(wildcard include/config/pm/generic/domains.h) \
+  include/linux/ratelimit.h \
+  /usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/asm/device.h \
+    $(wildcard include/config/iommu/api.h) \
+  include/linux/pm_wakeup.h \
+  include/linux/dma-mapping.h \
+    $(wildcard include/config/has/dma.h) \
+    $(wildcard include/config/arch/has/dma/set/coherent/mask.h) \
+    $(wildcard include/config/have/dma/attrs.h) \
+    $(wildcard include/config/need/dma/map/state.h) \
+  include/linux/dma-attrs.h \
+  include/linux/dma-direction.h \
+  /usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/asm/dma-mapping.h \
+  include/asm-generic/dma-coherent.h \
+    $(wildcard include/config/have/generic/dma/coherent.h) \
+  include/asm-generic/dma-mapping-common.h \
+  include/linux/kmemcheck.h \
+  include/linux/dma-debug.h \
+    $(wildcard include/config/dma/api/debug.h) \
+  include/uapi/linux/if_ether.h \
+  /usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/asm/uaccess.h \
+  /usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/asm/compiler.h \
+  include/rdma/rdma_cm.h \
+  include/linux/socket.h \
+  arch/arm64/include/generated/asm/socket.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/asm-generic/socket.h \
+  arch/arm64/include/generated/asm/sockios.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/asm-generic/sockios.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/sockios.h \
+  include/linux/uio.h \
+  include/uapi/linux/uio.h \
+  include/uapi/linux/socket.h \
+  include/linux/in6.h \
+  include/uapi/linux/in6.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/libc-compat.h \
+  include/rdma/ib_addr.h \
+  include/linux/in.h \
+  include/uapi/linux/in.h \
+  include/linux/if_arp.h \
+    $(wildcard include/config/firewire/net.h) \
+  include/linux/skbuff.h \
+    $(wildcard include/config/nf/conntrack.h) \
+    $(wildcard include/config/bridge/netfilter.h) \
+    $(wildcard include/config/xfrm.h) \
+    $(wildcard include/config/net/sched.h) \
+    $(wildcard include/config/net/cls/act.h) \
+    $(wildcard include/config/ipv6/ndisc/nodetype.h) \
+    $(wildcard include/config/net/rx/busy/poll.h) \
+    $(wildcard include/config/network/secmark.h) \
+    $(wildcard include/config/network/phy/timestamping.h) \
+    $(wildcard include/config/netfilter/xt/target/trace.h) \
+  include/linux/net.h \
+  include/linux/random.h \
+    $(wildcard include/config/arch/random.h) \
+  include/uapi/linux/random.h \
+  include/linux/irqnr.h \
+  include/uapi/linux/irqnr.h \
+  include/linux/jump_label.h \
+    $(wildcard include/config/jump/label.h) \
+  include/uapi/linux/net.h \
+  include/linux/textsearch.h \
+  include/net/checksum.h \
+  arch/arm64/include/generated/asm/checksum.h \
+  include/asm-generic/checksum.h \
+  include/linux/netdev_features.h \
+  include/net/flow_keys.h \
+  include/uapi/linux/if_arp.h \
+  include/linux/netdevice.h \
+    $(wildcard include/config/dcb.h) \
+    $(wildcard include/config/wlan.h) \
+    $(wildcard include/config/ax25.h) \
+    $(wildcard include/config/mac80211/mesh.h) \
+    $(wildcard include/config/net/ipip.h) \
+    $(wildcard include/config/net/ipgre.h) \
+    $(wildcard include/config/ipv6/sit.h) \
+    $(wildcard include/config/ipv6/tunnel.h) \
+    $(wildcard include/config/rps.h) \
+    $(wildcard include/config/netpoll.h) \
+    $(wildcard include/config/xps.h) \
+    $(wildcard include/config/bql.h) \
+    $(wildcard include/config/rfs/accel.h) \
+    $(wildcard include/config/fcoe.h) \
+    $(wildcard include/config/net/poll/controller.h) \
+    $(wildcard include/config/libfcoe.h) \
+    $(wildcard include/config/wireless/ext.h) \
+    $(wildcard include/config/vlan/8021q.h) \
+    $(wildcard include/config/net/dsa.h) \
+    $(wildcard include/config/net/ns.h) \
+    $(wildcard include/config/netprio/cgroup.h) \
+    $(wildcard include/config/net/dsa/tag/dsa.h) \
+    $(wildcard include/config/net/dsa/tag/trailer.h) \
+    $(wildcard include/config/netpoll/trap.h) \
+    $(wildcard include/config/net/flow/limit.h) \
+  include/linux/pm_qos.h \
+  include/linux/miscdevice.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/major.h \
+  include/linux/dmaengine.h \
+    $(wildcard include/config/async/tx/enable/channel/switch.h) \
+    $(wildcard include/config/dma/engine.h) \
+    $(wildcard include/config/rapidio/dma/engine.h) \
+    $(wildcard include/config/async/tx/dma.h) \
+  include/linux/dynamic_queue_limits.h \
+  include/linux/ethtool.h \
+  include/linux/compat.h \
+    $(wildcard include/config/compat/old/sigaction.h) \
+    $(wildcard include/config/odd/rt/sigaction.h) \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/if.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/hdlc/ioctl.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/aio_abi.h \
+  include/uapi/linux/ethtool.h \
+  include/linux/if_ether.h \
+  include/net/net_namespace.h \
+    $(wildcard include/config/ipv6.h) \
+    $(wildcard include/config/ip/sctp.h) \
+    $(wildcard include/config/ip/dccp.h) \
+    $(wildcard include/config/netfilter.h) \
+    $(wildcard include/config/nf/tables.h) \
+    $(wildcard include/config/nf/defrag/ipv6.h) \
+    $(wildcard include/config/wext/core.h) \
+    $(wildcard include/config/ip/vs.h) \
+  include/net/netns/core.h \
+  include/net/netns/mib.h \
+    $(wildcard include/config/xfrm/statistics.h) \
+  include/net/snmp.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/snmp.h \
+  include/linux/u64_stats_sync.h \
+  include/net/netns/unix.h \
+  include/net/netns/packet.h \
+  include/net/netns/ipv4.h \
+    $(wildcard include/config/ip/multiple/tables.h) \
+    $(wildcard include/config/ip/route/classid.h) \
+    $(wildcard include/config/ip/mroute.h) \
+    $(wildcard include/config/ip/mroute/multiple/tables.h) \
+  include/net/inet_frag.h \
+  include/net/netns/ipv6.h \
+    $(wildcard include/config/ipv6/multiple/tables.h) \
+    $(wildcard include/config/ipv6/mroute.h) \
+    $(wildcard include/config/ipv6/mroute/multiple/tables.h) \
+  include/net/dst_ops.h \
+  include/net/netns/sctp.h \
+  include/net/netns/dccp.h \
+  include/net/netns/netfilter.h \
+  include/linux/netfilter.h \
+    $(wildcard include/config/nf/nat/needed.h) \
+  include/uapi/linux/netfilter.h \
+  include/net/flow.h \
+  include/net/netns/x_tables.h \
+    $(wildcard include/config/bridge/nf/ebtables.h) \
+    $(wildcard include/config/ip/nf/target/ulog.h) \
+    $(wildcard include/config/bridge/ebt/ulog.h) \
+  include/net/netns/conntrack.h \
+    $(wildcard include/config/nf/conntrack/proc/compat.h) \
+    $(wildcard include/config/nf/conntrack/labels.h) \
+  include/linux/list_nulls.h \
+  include/linux/netfilter/nf_conntrack_tcp.h \
+  include/uapi/linux/netfilter/nf_conntrack_tcp.h \
+  include/net/netns/nftables.h \
+  include/net/netns/xfrm.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/xfrm.h \
+  include/linux/seq_file_net.h \
+  include/linux/seq_file.h \
+  include/net/dsa.h \
+  include/net/dcbnl.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/dcbnl.h \
+  include/net/netprio_cgroup.h \
+  include/linux/cgroup.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/cgroupstats.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/taskstats.h \
+  include/linux/prio_heap.h \
+  include/linux/idr.h \
+  include/linux/xattr.h \
+  include/uapi/linux/xattr.h \
+  include/linux/percpu-refcount.h \
+  include/linux/cgroup_subsys.h \
+    $(wildcard include/config/cgroup/debug.h) \
+    $(wildcard include/config/cgroup/cpuacct.h) \
+    $(wildcard include/config/cgroup/device.h) \
+    $(wildcard include/config/cgroup/freezer.h) \
+    $(wildcard include/config/net/cls/cgroup.h) \
+    $(wildcard include/config/cgroup/perf.h) \
+    $(wildcard include/config/cgroup/hugetlb.h) \
+  include/linux/hardirq.h \
+  include/linux/ftrace_irq.h \
+    $(wildcard include/config/ftrace/nmi/enter.h) \
+  include/linux/vtime.h \
+  include/linux/context_tracking_state.h \
+  include/linux/static_key.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/neighbour.h \
+  include/linux/netlink.h \
+  include/net/scm.h \
+    $(wildcard include/config/security/network.h) \
+  include/linux/security.h \
+    $(wildcard include/config/security/path.h) \
+    $(wildcard include/config/security/network/xfrm.h) \
+    $(wildcard include/config/securityfs.h) \
+    $(wildcard include/config/security/yama.h) \
+  include/linux/nsproxy.h \
+  include/uapi/linux/netlink.h \
+  include/uapi/linux/netdevice.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/if_packet.h \
+  include/linux/if_link.h \
+  include/uapi/linux/if_link.h \
+  include/linux/inetdevice.h \
+  include/linux/ip.h \
+  include/uapi/linux/ip.h \
+  include/linux/rtnetlink.h \
+  include/uapi/linux/rtnetlink.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/if_addr.h \
+  include/linux/if_vlan.h \
+  include/linux/etherdevice.h \
+    $(wildcard include/config/have/efficient/unaligned/access.h) \
+  arch/arm64/include/generated/asm/unaligned.h \
+  include/asm-generic/unaligned.h \
+  include/linux/unaligned/le_struct.h \
+  include/linux/unaligned/packed_struct.h \
+  include/linux/unaligned/be_byteshift.h \
+  include/linux/unaligned/generic.h \
+  include/uapi/linux/if_vlan.h \
+  include/net/ipv6.h \
+  include/linux/ipv6.h \
+    $(wildcard include/config/ipv6/router/pref.h) \
+    $(wildcard include/config/ipv6/route/info.h) \
+    $(wildcard include/config/ipv6/optimistic/dad.h) \
+    $(wildcard include/config/ipv6/mip6.h) \
+    $(wildcard include/config/ipv6/subtrees.h) \
+  include/uapi/linux/ipv6.h \
+  include/linux/icmpv6.h \
+  include/uapi/linux/icmpv6.h \
+  include/linux/tcp.h \
+    $(wildcard include/config/tcp/md5sig.h) \
+  include/net/sock.h \
+    $(wildcard include/config/net.h) \
+  include/linux/uaccess.h \
+  include/linux/memcontrol.h \
+    $(wildcard include/config/memcg/swap.h) \
+    $(wildcard include/config/inet.h) \
+  include/linux/res_counter.h \
+  include/linux/aio.h \
+  include/linux/filter.h \
+    $(wildcard include/config/bpf/jit.h) \
+  include/uapi/linux/filter.h \
+  include/linux/rculist_nulls.h \
+  include/linux/poll.h \
+  include/uapi/linux/poll.h \
+  arch/arm64/include/generated/asm/poll.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/asm-generic/poll.h \
+  include/net/dst.h \
+  include/net/neighbour.h \
+  include/net/rtnetlink.h \
+  include/net/netlink.h \
+  include/net/inet_connection_sock.h \
+  include/net/inet_sock.h \
+  include/linux/jhash.h \
+  include/net/request_sock.h \
+  include/net/netns/hash.h \
+  include/net/inet_timewait_sock.h \
+  include/net/tcp_states.h \
+  include/net/timewait_sock.h \
+  include/uapi/linux/tcp.h \
+  include/linux/udp.h \
+  include/uapi/linux/udp.h \
+  include/net/if_inet6.h \
+  include/net/ndisc.h \
   include/linux/hash.h \
+  include/net/ip.h \
+  include/net/route.h \
+  include/net/inetpeer.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/in_route.h \
+  /usr/src/linux-headers-3.13.0-40-generic/include/uapi/linux/route.h \
+  include/rdma/ib_pack.h \
+  include/rdma/ib_sa.h \
+  include/rdma/ib_mad.h \
 
-/media/nfs/mem_driver/ver2/mem_ds.o: $(deps_/media/nfs/mem_driver/ver2/mem_ds.o)
+/media/nfs/mem_driver/ver3/mem_rdma.o: $(deps_/media/nfs/mem_driver/ver3/mem_rdma.o)
 
-$(deps_/media/nfs/mem_driver/ver2/mem_ds.o):
+$(deps_/media/nfs/mem_driver/ver3/mem_rdma.o):

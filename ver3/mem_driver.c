@@ -55,14 +55,13 @@ struct vm_operations_struct memory_vm_ops = {
 		fault: memory_fault,
 };
 
-
 /* Global variables */
-static char *type; // module parameter (local/remote)
+int node; // 0 for local, 1 ~ NNODES-1 for remote
 int is_local = -1;
+int port;
 
 struct semaphore sem;
 struct task_struct *gt_id = NULL; // kthread
-extern struct memory_cb *gcb; // RDMA control block
 
 void* slabs[NSLABS];
 int slabs_succ = -1;
@@ -77,29 +76,28 @@ module_init(memory_init);
 module_exit(memory_exit);
 
 /* Module parameter */
-module_param(type, charp, 0000);
+module_param(node, int, 0000);
 
 int memory_init(void) {
 
 	printk("[%s]\n", __FUNCTION__);
 #if(DEBUG)
-	printk("type: %s\n", type);
+	printk("cmd: %s\n", cmd);
 	printk("max mmap pages: %lu\n", max_pages);
 #endif
 
 	unsigned int i, j, k;
 	int ret;
 
-	// check type
-	if (strcmp(type, "local") == 0)
+	// check local or remote
+	if (node == 0)
 		is_local = 1;
-	else if (strcmp(type, "remote") == 0)
-		is_local = 0;
 	else {
-		printk("<error> invalid type: %s\n", type);
-		ret = -EINVAL;
-		goto fail1;
+		is_local = 0;
 	}
+
+	// calculate port
+	port = RDMA_PORT + node;
 
 	// register device
 	ret = register_chrdev(MEMORY_MAJOR, "memory", &memory_fops);
@@ -500,7 +498,7 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 	
 	// RDMA write content
 #if(USE_RDMA)
-	ret = server_rdma_write(lp->slab_no, lp->slab_pgoff, rp->slab_no, rp->slab_pgoff);
+	ret = server_rdma_write(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
 	if (ret < 0) {
 		printk("<error> server_rdma_write failure: %d\n", ret);
 		ret = VM_FAULT_ERROR;
@@ -524,7 +522,7 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 		lh = &(rp->list);
 
 #if(USE_RDMA)
-		ret = server_rdma_read(lp->slab_no, lp->slab_pgoff, rp->slab_no, rp->slab_pgoff);
+		ret = server_rdma_read(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
 		if (ret < 0) {
 			printk("<error> server_rdma_read failure: %d\n", ret);
 			ret = VM_FAULT_ERROR;
