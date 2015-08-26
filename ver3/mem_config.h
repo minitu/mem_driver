@@ -9,7 +9,7 @@
 #define DEBUG 0 // set for debugging output
 #define USE_RDMA 1 // set to use RDMA
 
-#define NNODES 4 // number of nodes
+#define NNODES 2 // number of nodes
 #define NSLABS 4096 // number of slabs
 #define NPAGES_SLAB 1024 // number of pages per slab
 #define NPAGES (NPAGES_SLAB*NSLABS) // total number of pages

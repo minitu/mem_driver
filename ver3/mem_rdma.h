@@ -1,21 +1,6 @@
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/fs.h>
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/proc_fs.h>
-#include <linux/vmalloc.h>
-#include <linux/mm.h>
-#include <linux/string.h>
 #include <linux/inet.h>
-#include <linux/err.h>
-#include <linux/sched.h>
-#include <linux/wait.h>
-#include <linux/delay.h>
 #include <linux/pci-dma.h>
-#include <asm/atomic.h>
 #include <linux/scatterlist.h>
-#include <linux/kthread.h>
 
 #include "mem_config.h"
 
@@ -98,11 +83,7 @@ struct memory_cb {
 
 	struct ib_send_wr rdma_sq_wr;	// RDMA work request record
 	struct ib_sge rdma_sgl;			// RDMA single SGE
-	/*
-	void* rdma_buf;
-	u64 rdma_dma_addr;
-	DECLARE_PCI_UNMAP_ADDR(rdma_mapping)
-	*/
+
 	struct scatterlist rdma_sl[NSLABS]; // RDMA scatterlist
 
 	u64 local_addr[NSLABS]; // local addresses of slabs
@@ -111,6 +92,7 @@ struct memory_cb {
 	uint64_t remote_addr[NSLABS];
 	uint32_t remote_len;
 
+	/* Received data storage */
 	uint32_t req_type;
 	uint64_t munmap_va;
 	uint32_t slab[CHUNK_SIZE];
@@ -118,8 +100,8 @@ struct memory_cb {
 	uint32_t cnt;
 
 	/* Connection manager */
-	struct rdma_cm_id *cm_id;		// connection on client, listener on server
-	struct rdma_cm_id *child_cm_id;	// connection on server side
+	struct rdma_cm_id *cm_id;		// connection on server, listener on client
+	struct rdma_cm_id *child_cm_id;	// connection on client side
 };
 
 int memory_rdma_init(void);
