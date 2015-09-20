@@ -38,21 +38,39 @@ int timeval_subtract(struct timeval *result, struct timeval *x, \
 	return x->tv_sec < y->tv_sec;
 }
 
+void quicksort(int* a, unsigned long n) {
+	unsigned long i, j;
+	int p, t;
+
+	if (n < 2)
+		return;
+	p = a[n/2];
+	for (i = 0, j = n-1; ; i++, j--) {
+		while (a[i] < p)
+			i++;
+		while (p < a[j])
+			j--;
+		if (i >= j)
+			break;
+		t = a[i];
+		a[i] = a[j];
+		a[j] = t;
+	}
+	quicksort(a, i);
+	quicksort(a + i, n - i);
+}
+
+
 int main()
 {
 	int* a;
 	unsigned long i;
-	unsigned long NINT = 1024UL * 1024UL * 1024UL;
+	unsigned long NINT = 1024UL * 1024UL;
 	int fd;
-
 	struct timeval start, end, diff;
-	gettimeofday(&start, NULL);
 
 #if(!REMOTE)
 	a = (int*)malloc(sizeof(int) * NINT);
-	for (i = 0; i < NINT; i++) {
-		a[i] = 7;
-	}
 #else
 	// open device
 	fd = open("/dev/memory", O_RDWR);
@@ -63,17 +81,32 @@ int main()
 
 	// initialize matrices
 	a = (int*)mmap(NULL, sizeof(int) * NINT, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+#endif
+
+	// generate random numbers
+	srand(time(NULL));
+
 	for (i = 0; i < NINT; i++) {
-		a[i] = 7;
+		a[i] = rand() % 1000000;
 	}
 
-	// close device
-	close(fd);
-#endif
+	gettimeofday(&start, NULL);
+
+	// quicksort
+	quicksort(a, NINT);
+
+	/*
+	for (i = 0; i < NINT; i++)
+		printf("%d%s", a[i], i == NINT-1 ? "\n" : " ");
+	*/
 
 	gettimeofday(&end, NULL);
 	timeval_subtract(&diff, &end, &start);
 	printf("elapsed time: %ld.%ld\n", diff.tv_sec, diff.tv_usec);
+
+#if(REMOTE)
+	my_munmap(fd, a, sizeof(int) * NINT);
+#endif
 
 	return 0;
 }

@@ -1,0 +1,12 @@
+modprobe rdma_cm
+modprobe ib_uverbs
+modprobe rdma_ucm
+modprobe ib_ucm
+modprobe ib_umad
+modprobe ib_ipoib
+modprobe mlx4_ib
+modprobe mlx4_en
+modprobe iw_cxgb3
+modprobe iw_cxgb4
+modprobe iw_nes
+modprobe iw_c2
