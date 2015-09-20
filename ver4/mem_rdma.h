@@ -106,7 +106,7 @@ struct memory_cb {
 
 int memory_rdma_init(void);
 void memory_rdma_exit(void);
-int client_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
+int host_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
 		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff);
-int client_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
+int host_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
 		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff);

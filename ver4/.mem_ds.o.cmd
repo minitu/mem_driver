@@ -1,10 +1,11 @@
-cmd_/media/nfs/mem_driver/ver3/mem_ds.o := gcc -Wp,-MD,/media/nfs/mem_driver/ver3/.mem_ds.o.d  -nostdinc -isystem /usr/lib/gcc/aarch64-linux-gnu/4.8/include  -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include -Iarch/arm64/include/generated  -Iinclude -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/uapi -Iarch/arm64/include/generated/uapi -I/usr/src/linux-headers-3.13.0-40-generic/include/uapi -Iinclude/generated/uapi -include /usr/src/linux-headers-3.13.0-40-generic/include/linux/kconfig.h -Iubuntu/include  -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -fno-delete-null-pointer-checks -O2 -mgeneral-regs-only -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -DMODULE  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(mem_ds)"  -D"KBUILD_MODNAME=KBUILD_STR(memory)" -c -o /media/nfs/mem_driver/ver3/.tmp_mem_ds.o /media/nfs/mem_driver/ver3/mem_ds.c
+cmd_/media/nfs/mem_driver/ver4/mem_ds.o := gcc -Wp,-MD,/media/nfs/mem_driver/ver4/.mem_ds.o.d  -nostdinc -isystem /usr/lib/gcc/aarch64-linux-gnu/4.8/include  -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include -Iarch/arm64/include/generated  -Iinclude -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/uapi -Iarch/arm64/include/generated/uapi -I/usr/src/linux-headers-3.13.0-40-generic/include/uapi -Iinclude/generated/uapi -include /usr/src/linux-headers-3.13.0-40-generic/include/linux/kconfig.h -Iubuntu/include  -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -fno-delete-null-pointer-checks -O2 -mgeneral-regs-only -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -DMODULE  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(mem_ds)"  -D"KBUILD_MODNAME=KBUILD_STR(memory)" -c -o /media/nfs/mem_driver/ver4/.tmp_mem_ds.o /media/nfs/mem_driver/ver4/mem_ds.c
 
-source_/media/nfs/mem_driver/ver3/mem_ds.o := /media/nfs/mem_driver/ver3/mem_ds.c
+source_/media/nfs/mem_driver/ver4/mem_ds.o := /media/nfs/mem_driver/ver4/mem_ds.c
 
-deps_/media/nfs/mem_driver/ver3/mem_ds.o := \
-  /media/nfs/mem_driver/ver3/mem_ds.h \
-  /media/nfs/mem_driver/ver3/mem_config.h \
+deps_/media/nfs/mem_driver/ver4/mem_ds.o := \
+  /media/nfs/mem_driver/ver4/mem_ds.h \
+  /media/nfs/mem_driver/ver4/mem_config.h \
+    $(wildcard include/config/path.h) \
   include/linux/kernel.h \
     $(wildcard include/config/lbdaf.h) \
     $(wildcard include/config/preempt/voluntary.h) \
@@ -536,6 +537,6 @@ deps_/media/nfs/mem_driver/ver3/mem_ds.o := \
   include/linux/hashtable.h \
   include/linux/hash.h \
 
-/media/nfs/mem_driver/ver3/mem_ds.o: $(deps_/media/nfs/mem_driver/ver3/mem_ds.o)
+/media/nfs/mem_driver/ver4/mem_ds.o: $(deps_/media/nfs/mem_driver/ver4/mem_ds.o)
 
-$(deps_/media/nfs/mem_driver/ver3/mem_ds.o):
+$(deps_/media/nfs/mem_driver/ver4/mem_ds.o):

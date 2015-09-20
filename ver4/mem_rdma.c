@@ -1,11 +1,12 @@
 #include "mem_rdma.h"
 
 extern void* slabs[NSLABS];
-extern int is_local;
+extern int node;
+//extern int is_local;
 extern int port;
 
 struct memory_cb *gcb[NNODES];
-struct memory_cb *rcb;
+//struct memory_cb *rcb;
 struct task_struct *kc_id = NULL;
 
 static int memory_cma_event_handler(struct rdma_cm_id *cma_id,
@@ -82,7 +83,7 @@ static int memory_cma_event_handler(struct rdma_cm_id *cma_id,
 	return 0;
 }
 
-static int client_recv(struct memory_cb *cb, struct ib_wc *wc) {
+static int server_recv(struct memory_cb *cb, struct ib_wc *wc) {
 	
 	int i;
 
@@ -109,7 +110,7 @@ static int client_recv(struct memory_cb *cb, struct ib_wc *wc) {
 	return 0;
 }
 
-static int server_recv(struct memory_cb *cb, struct ib_wc *wc) {
+static int client_recv(struct memory_cb *cb, struct ib_wc *wc) {
 	if (wc->byte_len != sizeof(cb->recv_buf)) {
 		printk(KERN_ERR "received bogus data, size %d\n",
 				wc->byte_len);
@@ -207,7 +208,7 @@ static void memory_cq_event_handler(struct ib_cq *cq, void *ctx) {
 #if(DEBUG)
 				printk("recv completion\n");
 #endif
-				ret = is_local ? client_recv(cb, &wc) : server_recv(cb, &wc);
+				ret = is_local ? server_recv(cb, &wc) : client_recv(cb, &wc);
 				if (ret) {
 					printk(KERN_ERR "recv wc error: %d\n", ret);
 					goto error;
@@ -236,7 +237,7 @@ static int memory_accept(struct memory_cb *cb) {
 	int ret;
 
 #if(DEBUG)
-	printk("accepting server connection request\n");
+	printk("accepting client connection request\n");
 #endif
 
 	memset(&conn_param, 0, sizeof conn_param);
@@ -495,7 +496,7 @@ static void memory_format_send(struct memory_cb *cb) {
 	}
 }
 
-int client_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
+int host_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
 		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff) {
 
 	struct memory_cb *cb = gcb[node];
@@ -525,7 +526,7 @@ int client_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
 	cb->rdma_sq_wr.next = NULL;
 
 #if(DEBUG)
-	printk("client posted rdma write req: 0.%u.%u -> %u.%u.%u\n", \
+	printk("server posted rdma write req: 0.%u.%u -> %u.%u.%u\n", \
 			local_slab, local_pgoff, node, remote_slab, remote_pgoff);
 #endif
 
@@ -537,13 +538,13 @@ int client_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
 	}
 	
 #if(DEBUG)
-	printk("client received write complete\n");
+	printk("server received write complete\n");
 #endif
 
 	return 0;
 }
 
-int client_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
+int host_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
 		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff) {
 	
 	struct memory_cb *cb = gcb[node];
@@ -574,7 +575,7 @@ int client_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
 	cb->rdma_sq_wr.next = NULL;
 
 #if(DEBUG)
-	printk("client posted rdma read req: 0.%u.%u <- %u.%u.%u\n", \
+	printk("server posted rdma read req: 0.%u.%u <- %u.%u.%u\n", \
 			local_slab, local_pgoff, node, remote_slab, remote_pgoff);
 #endif
 
@@ -586,7 +587,7 @@ int client_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
 	}
 	
 #if(DEBUG)
-	printk("client received read complete\n");
+	printk("server received read complete\n");
 #endif
 
 	return 0;
@@ -605,7 +606,7 @@ static void fill_sockaddr(struct sockaddr_storage *sin, struct memory_cb *cb) {
 	}
 }
 
-static int memory_bind_client(struct memory_cb *cb) {
+static int memory_bind_server(struct memory_cb *cb) {
 
 	struct sockaddr_storage sin;
 	int ret;
@@ -633,11 +634,11 @@ static int memory_bind_client(struct memory_cb *cb) {
 	return 0;
 }
 
-static int memory_run_client(struct memory_cb *cb) {
+static int memory_run_server(struct memory_cb *cb) {
 	struct ib_recv_wr *bad_wr;
 	int ret = 0;
 
-	ret = memory_bind_client(cb);
+	ret = memory_bind_server(cb);
 	if (ret)
 		return ret;
 
@@ -665,7 +666,7 @@ static int memory_run_client(struct memory_cb *cb) {
 		goto err2;
 	}
 
-	// wait for server's message
+	// wait for client's message
 	wait_event_interruptible(cb->sem, cb->state >= COMM_READY);
 	if (cb->state != COMM_READY) {
 		printk(KERN_ERR "wait for COMM_READY state %d\n", cb->state);
@@ -691,7 +692,7 @@ err0:
 	return ret;
 }
 
-static int memory_connect_server(struct memory_cb *cb) {
+static int memory_connect_client(struct memory_cb *cb) {
 	
 	struct rdma_conn_param conn_param;
 	int ret;
@@ -720,7 +721,7 @@ static int memory_connect_server(struct memory_cb *cb) {
 	return 0;
 }
 
-static int memory_bind_server(struct memory_cb *cb) {
+static int memory_bind_client(struct memory_cb *cb) {
 
 	struct sockaddr_storage sin;
 	int ret;
@@ -746,13 +747,13 @@ static int memory_bind_server(struct memory_cb *cb) {
 	return 0;
 }
 
-static int memory_run_server(struct memory_cb *cb) {
+static int memory_run_client(struct memory_cb *cb) {
 	
 	struct ib_send_wr *bad_wr;
 	int ret = 0;
 	int retry = 0;
 
-	ret = memory_bind_server(cb);
+	ret = memory_bind_client(cb);
 	if (ret)
 		return ret;
 
@@ -776,13 +777,13 @@ static int memory_run_server(struct memory_cb *cb) {
 	}
 	*/
 
-	ret = memory_connect_server(cb);
+	ret = memory_connect_client(cb);
 	if (ret) {
 		printk(KERN_ERR "connect error %d\n", ret);
 		goto err2;
 	}
 
-	// notify RDMA region to client
+	// notify RDMA region to server
 	memory_format_send(cb);
 	if (cb->state == ERROR) {
 		printk(KERN_ERR "memory_format_send failed\n");
@@ -824,14 +825,10 @@ int memory_rdma_init(void) {
 	int i;
 	int succ_i = 0;
 
-	for (i = 1; i < NNODES; i++) {
-		if (is_local) {
+	for (i = 0; i < NNODES; i++) {
+		if (i != node) {
 			gcb[i] = kzalloc(sizeof(struct memory_cb), GFP_KERNEL);
 			cb = gcb[i];
-		}
-		else {
-			rcb = kzalloc(sizeof(struct memory_cb), GFP_KERNEL);
-			cb = rcb;
 		}
 
 		cb->state = IDLE;
@@ -861,10 +858,10 @@ int memory_rdma_init(void) {
 
 	if (is_local) {
 		for (i = 1; i < NNODES; i++)
-			ret = memory_run_client(gcb[i]);
+			ret = memory_run_server(gcb[i]);
 	}
 	else
-		ret = memory_run_server(rcb);
+		ret = memory_run_client(rcb);
 
 	if (ret != 0)
 		goto out2;

@@ -54,8 +54,8 @@ struct vm_operations_struct memory_vm_ops = {
 };
 
 /* Global variables */
-int node; // 0 for local, 1 ~ NNODES-1 for remote
-int is_local = -1;
+int node; // node number (0 ~ NNODES-1)
+char* nodeip[NNODES];
 int port;
 
 struct semaphore sem;
@@ -86,13 +86,51 @@ int memory_init(void) {
 
 	unsigned int i, j, k;
 	int ret;
+	struct list_head *lh, *temp_lh;
 
-	// check local or remote
-	if (node == 0)
-		is_local = 1;
-	else {
-		is_local = 0;
+	// allocate memory for node IP addresses
+	for (i = 0; i < NNODES; i++) {
+		nodeip[i] = kmalloc(32, GFP_KERNEL);
+		if (nodeip[i] == NULL) {
+			printk("<error> nodeip kmalloc failure: nodeip[%d]\n", i);
+			goto fail0;
+		}
 	}
+	
+	// read nodeip config file
+	struct file *fp;
+	char buf[32];
+	int offset = 0;
+	int node_i = 0;
+
+	fp = filp_open(NODEIP_CONFIG_PATH, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		printk("<error> cannot open file %d\n", PTR_ERR(fp));
+		goto fail1;
+	}
+
+	while (1) {
+		ret = kernel_read(fp, offset, buf, 32);
+		if (ret > 0) {
+			if (node_i >= NNODES)
+				break;
+			/*
+			for (i = 0; i < 32; i++) {
+				printk("%c", buf[i]);
+			}
+			*/
+			printk("%s", buf);
+			printk("\n");
+			//strcpy(nodeip[node_i], buf);
+			//printk("%d: %s\n", node_i, nodeip[node_i]);
+			offset += ret;
+			node_i++;
+		}
+		else
+			break;
+	}
+
+	filp_close(fp, NULL);
 
 	// calculate port
 	port = RDMA_PORT + node;
@@ -119,35 +157,35 @@ int memory_init(void) {
 	}
 
 	// intialize structures & lists
-	if (is_local) {
-		for (i = 0; i < NNODES; i++) {
-			INIT_LIST_HEAD(&free_list[i]);
-		}
+	for (i = 0; i < NNODES; i++) {
+		INIT_LIST_HEAD(&free_list[i]);
+	}
 
-		// local
-		struct local_page *temp_lp;
+	// local
+	struct local_page *temp_lp;
 
-		for (i = 0; i < NSLABS; i++) {
-			for (j = 0; j < NPAGES_SLAB; j++) {
-				temp_lp = (struct local_page *)kmalloc(sizeof(struct local_page), GFP_KERNEL);
-				if (temp_lp == NULL) {
-					printk("<error> local_page kmalloc failed\n");
-					ret = -ENOMEM;
-					goto fail2;
-				}
-				temp_lp->user_va = 0;
-				temp_lp->slab_no = i;
-				temp_lp->slab_pgoff = j;
-				temp_lp->slab_va = slabs[i] + PAGE_SIZE * j;
-				temp_lp->vma = NULL;
-				list_add(&(temp_lp->list), &free_list[0]);
+	for (i = 0; i < NSLABS; i++) {
+		for (j = 0; j < NPAGES_SLAB; j++) {
+			temp_lp = (struct local_page *)kmalloc(sizeof(struct local_page), GFP_KERNEL);
+			if (temp_lp == NULL) {
+				printk("<error> local_page kmalloc failed\n");
+				ret = -ENOMEM;
+				goto fail2;
 			}
+			temp_lp->user_va = 0;
+			temp_lp->slab_no = i;
+			temp_lp->slab_pgoff = j;
+			temp_lp->slab_va = slabs[i] + PAGE_SIZE * j;
+			temp_lp->vma = NULL;
+			list_add(&(temp_lp->list), &free_list[node]);
 		}
+	}
 
-		// remote
-		struct remote_page *temp_rp;
+	// remote
+	struct remote_page *temp_rp;
 
-		for (i = 1; i < NNODES; i++) {
+	for (i = 0; i < NNODES; i++) {
+		if (i != node) {
 			for (j = 0; j < NSLABS; j++) {
 				for (k = 0; k < NPAGES_SLAB; k++) {
 					temp_rp = (struct remote_page *)kmalloc(sizeof(struct remote_page), GFP_KERNEL);
@@ -163,7 +201,7 @@ int memory_init(void) {
 					// add to free list
 					list_add(&(temp_rp->list), &free_list[i]);
 				}
-			}
+			}	
 		}
 	}
 
@@ -181,20 +219,19 @@ int memory_init(void) {
 	return 0;
 
 fail3:
-	if (is_local) {
-		// kfree local free list
-		struct list_head *lh, *temp_lh;
-		if (!list_empty(&free_list[0])) {
-			for (lh = free_list[0].next; lh != &free_list[0];) {
-				temp_lh = lh;
-				lh = lh->next;
-				list_del(temp_lh);
-				kfree(list_entry(temp_lh, struct local_page, list));
-			}
+	// kfree local free list
+	if (!list_empty(&free_list[node])) {
+		for (lh = free_list[node].next; lh != &free_list[node];) {
+			temp_lh = lh;
+			lh = lh->next;
+			list_del(temp_lh);
+			kfree(list_entry(temp_lh, struct local_page, list));
 		}
+	}
 
-		// kfree remote free lists
-		for (i = 1; i < NNODES; i++) {
+	// kfree remote free lists
+	for (i = 0; i < NNODES; i++) {
+		if (i != node) {
 			if (!list_empty(&free_list[i])) {
 				for (lh = free_list[i].next; lh != &free_list[i];) {
 					temp_lh = lh;
@@ -216,6 +253,12 @@ fail2:
 	unregister_chrdev(MEMORY_MAJOR, "memory");
 
 fail1:
+	// kfree nodeip
+	for (i = 0; i < NNODES; i++) {
+		kfree(nodeip[i]);
+	}
+
+fail0:
 	printk("<error> aborting insmod: %d\n", ret);
 	return ret;
 }
@@ -231,25 +274,30 @@ void memory_exit(void) {
 	memory_rdma_exit();
 #endif
 
+	// kfree nodeip
+	for (i = 0; i < NNODES; i++) {
+		kfree(nodeip[i]);
+	}
+
 	// kfree slabs
 	for (i = 0; i < NSLABS; i++) {
 		kfree(slabs[i]);
 	}
 
-	if (is_local) {
-		// kfree local free list
-		struct list_head *lh, *temp_lh;
-		if (!list_empty(&free_list[0])) {
-			for (lh = free_list[0].next; lh != &free_list[0];) {
-				temp_lh = lh;
-				lh = lh->next;
-				list_del(temp_lh);
-				kfree(list_entry(temp_lh, struct local_page, list));
-			}
+	// kfree local free list
+	struct list_head *lh, *temp_lh;
+	if (!list_empty(&free_list[node])) {
+		for (lh = free_list[node].next; lh != &free_list[node];) {
+			temp_lh = lh;
+			lh = lh->next;
+			list_del(temp_lh);
+			kfree(list_entry(temp_lh, struct local_page, list));
 		}
+	}
 		
-		// kfree remote free & alloc lists
-		for (i = 1; i < NNODES; i++) {
+	// kfree remote free & alloc lists
+	for (i = 0; i < NNODES; i++) {
+		if (i != node) {
 			if (!list_empty(&free_list[i])) {
 				for (lh = free_list[i].next; lh != &free_list[i];) {
 					temp_lh = lh;
@@ -359,7 +407,7 @@ ssize_t memory_mmap(struct file *flip, struct vm_area_struct *vma) {
 	npages_t = npages / NNODES;
 
 	while (npages_t > 0) {
-		lh = &free_list[0];
+		lh = &free_list[node];
 		if (list_empty(lh)) {
 			printk("<error> local free list empty during mmap\n");
 			return -ENOMEM;
@@ -383,23 +431,25 @@ ssize_t memory_mmap(struct file *flip, struct vm_area_struct *vma) {
 	}
 
 	// find remote free pages
-	for (i = 1; i < NNODES; i++) {
-		npages_t = npages / NNODES;
+	for (i = 0; i < NNODES; i++) {
+		if (i != node) {
+			npages_t = npages / NNODES;
 		
-		while (npages_t > 0) {
-			lh = &free_list[i];
-			if (list_empty(lh)) {
-				printk("<error> remote free list empty during mmap\n");
-				return -ENOMEM;
-			}
-			lh = lh->prev;
-			rp = list_entry(lh, struct remote_page, list);
+			while (npages_t > 0) {
+				lh = &free_list[i];
+				if (list_empty(lh)) {
+					printk("<error> remote free list empty during mmap\n");
+					return -ENOMEM;
+				}
+				lh = lh->prev;
+				rp = list_entry(lh, struct remote_page, list);
 		
-			// move to remote_free_list
-			list_del_init(lh);
-			list_add(lh, &(ma->remote_free_list));
+				// move to remote_free_list
+				list_del_init(lh);
+				list_add(lh, &(ma->remote_free_list));
 
-			npages_t -= 1;
+				npages_t -= 1;
+			}
 		}
 	}
 
@@ -480,9 +530,9 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 	
 	// RDMA write content
 #if(USE_RDMA)
-	ret = client_rdma_write(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
+	ret = host_rdma_write(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
 	if (ret < 0) {
-		printk("<error> client_rdma_write failure: %d\n", ret);
+		printk("<error> host_rdma_write failure: %d\n", ret);
 		ret = VM_FAULT_ERROR;
 		goto out;
 	}
@@ -504,9 +554,9 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 		lh = &(rp->list);
 
 #if(USE_RDMA)
-		ret = client_rdma_read(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
+		ret = host_rdma_read(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
 		if (ret < 0) {
-			printk("<error> client_rdma_read failure: %d\n", ret);
+			printk("<error> host_rdma_read failure: %d\n", ret);
 			ret = VM_FAULT_ERROR;
 			goto out;
 		}
