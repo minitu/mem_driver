@@ -99,9 +99,16 @@ int memory_init(void) {
 	
 	// read nodeip config file
 	struct file *fp;
-	char buf[32];
+	char *buf;
+	char *token;
 	int offset = 0;
 	int node_i = 0;
+
+	buf = kmalloc(sizeof(char) * 16 * NNODES, GFP_KERNEL);
+	if (buf == NULL) {
+		printk("<error> nodeip buffer kmalloc failure\n");
+		goto fail1;
+	}
 
 	fp = filp_open(NODEIP_CONFIG_PATH, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
@@ -109,28 +116,23 @@ int memory_init(void) {
 		goto fail1;
 	}
 
-	while (1) {
-		ret = kernel_read(fp, offset, buf, 32);
-		if (ret > 0) {
-			if (node_i >= NNODES)
-				break;
-			/*
-			for (i = 0; i < 32; i++) {
-				printk("%c", buf[i]);
-			}
-			*/
-			printk("%s", buf);
-			printk("\n");
-			//strcpy(nodeip[node_i], buf);
-			//printk("%d: %s\n", node_i, nodeip[node_i]);
-			offset += ret;
-			node_i++;
+	ret = kernel_read(fp, offset, buf, 16 * NNODES);
+	if (ret > 0) {
+		while ((token = strsep(&buf, "\n")) != NULL && node_i < NNODES) {
+			strcpy(nodeip[node_i++], token);
 		}
-		else
-			break;
+	}
+	else {
+		printk("<error> cannot read IP addresses\n");
+		goto fail1;
 	}
 
 	filp_close(fp, NULL);
+
+	// DEBUG
+	for (i = 0; i < NNODES; i++) {
+		printk("IP %d: %s\n", i, nodeip[i]);
+	}
 
 	// calculate port
 	port = RDMA_PORT + node;
