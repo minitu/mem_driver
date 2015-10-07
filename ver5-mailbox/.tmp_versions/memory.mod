@@ -1,2 +1,2 @@
-/media/nfs/mem_driver/ver4/memory.ko
-/media/nfs/mem_driver/ver4/mem_rdma.o /media/nfs/mem_driver/ver4/mem_ds.o /media/nfs/mem_driver/ver4/mem_driver.o
+/media/nfs/mem_driver/ver5-mailbox/memory.ko
+/media/nfs/mem_driver/ver5-mailbox/mem_rdma.o /media/nfs/mem_driver/ver5-mailbox/mem_ds.o /media/nfs/mem_driver/ver5-mailbox/mem_driver.o

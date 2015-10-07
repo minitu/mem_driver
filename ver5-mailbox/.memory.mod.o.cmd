@@ -1,8 +1,8 @@
-cmd_/media/nfs/mem_driver/ver4/memory.mod.o := gcc -Wp,-MD,/media/nfs/mem_driver/ver4/.memory.mod.o.d  -nostdinc -isystem /usr/lib/gcc/aarch64-linux-gnu/4.8/include  -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include -Iarch/arm64/include/generated  -Iinclude -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/uapi -Iarch/arm64/include/generated/uapi -I/usr/src/linux-headers-3.13.0-40-generic/include/uapi -Iinclude/generated/uapi -include /usr/src/linux-headers-3.13.0-40-generic/include/linux/kconfig.h -Iubuntu/include  -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -fno-delete-null-pointer-checks -O2 -mgeneral-regs-only -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(memory.mod)"  -D"KBUILD_MODNAME=KBUILD_STR(memory)" -DMODULE  -c -o /media/nfs/mem_driver/ver4/memory.mod.o /media/nfs/mem_driver/ver4/memory.mod.c
+cmd_/media/nfs/mem_driver/ver5-mailbox/memory.mod.o := gcc -Wp,-MD,/media/nfs/mem_driver/ver5-mailbox/.memory.mod.o.d  -nostdinc -isystem /usr/lib/gcc/aarch64-linux-gnu/4.8/include  -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include -Iarch/arm64/include/generated  -Iinclude -I/usr/src/linux-headers-3.13.0-40-generic/arch/arm64/include/uapi -Iarch/arm64/include/generated/uapi -I/usr/src/linux-headers-3.13.0-40-generic/include/uapi -Iinclude/generated/uapi -include /usr/src/linux-headers-3.13.0-40-generic/include/linux/kconfig.h -Iubuntu/include  -D__KERNEL__ -mlittle-endian -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -fno-delete-null-pointer-checks -O2 -mgeneral-regs-only -Wframe-larger-than=1024 -fno-stack-protector -Wno-unused-but-set-variable -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-var-tracking-assignments -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -Werror=implicit-int -Werror=strict-prototypes -DCC_HAVE_ASM_GOTO  -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(memory.mod)"  -D"KBUILD_MODNAME=KBUILD_STR(memory)" -DMODULE  -c -o /media/nfs/mem_driver/ver5-mailbox/memory.mod.o /media/nfs/mem_driver/ver5-mailbox/memory.mod.c
 
-source_/media/nfs/mem_driver/ver4/memory.mod.o := /media/nfs/mem_driver/ver4/memory.mod.c
+source_/media/nfs/mem_driver/ver5-mailbox/memory.mod.o := /media/nfs/mem_driver/ver5-mailbox/memory.mod.c
 
-deps_/media/nfs/mem_driver/ver4/memory.mod.o := \
+deps_/media/nfs/mem_driver/ver5-mailbox/memory.mod.o := \
     $(wildcard include/config/module/unload.h) \
   include/linux/module.h \
     $(wildcard include/config/sysfs.h) \
@@ -550,6 +550,6 @@ deps_/media/nfs/mem_driver/ver4/memory.mod.o := \
   include/linux/vermagic.h \
   include/generated/utsrelease.h \
 
-/media/nfs/mem_driver/ver4/memory.mod.o: $(deps_/media/nfs/mem_driver/ver4/memory.mod.o)
+/media/nfs/mem_driver/ver5-mailbox/memory.mod.o: $(deps_/media/nfs/mem_driver/ver5-mailbox/memory.mod.o)
 
-$(deps_/media/nfs/mem_driver/ver4/memory.mod.o):
+$(deps_/media/nfs/mem_driver/ver5-mailbox/memory.mod.o):

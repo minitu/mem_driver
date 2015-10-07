@@ -1,1 +1,1 @@
-cmd_/media/nfs/mem_driver/ver4/memory.ko := ld -EL -r  -T /usr/src/linux-headers-3.13.0-40-generic/scripts/module-common.lds --build-id  -o /media/nfs/mem_driver/ver4/memory.ko /media/nfs/mem_driver/ver4/memory.o /media/nfs/mem_driver/ver4/memory.mod.o
+cmd_/media/nfs/mem_driver/ver5-mailbox/memory.ko := ld -EL -r  -T /usr/src/linux-headers-3.13.0-40-generic/scripts/module-common.lds --build-id  -o /media/nfs/mem_driver/ver5-mailbox/memory.ko /media/nfs/mem_driver/ver5-mailbox/memory.o /media/nfs/mem_driver/ver5-mailbox/memory.mod.o
