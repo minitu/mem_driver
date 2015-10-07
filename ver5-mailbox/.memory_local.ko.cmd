@@ -1,0 +1,1 @@
+cmd_/media/nfs/mem_driver/ver2/memory_local.ko := ld -EL -r  -T /usr/src/linux-headers-3.13.0-40-generic/scripts/module-common.lds --build-id  -o /media/nfs/mem_driver/ver2/memory_local.ko /media/nfs/mem_driver/ver2/memory_local.o /media/nfs/mem_driver/ver2/memory_local.mod.o
