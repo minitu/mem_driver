@@ -23,9 +23,10 @@ enum test_state {
 	ADDR_RESOLVED, // 3
 	ROUTE_RESOLVED, // 4
 	CONNECTED, // 5
-	COMM_READY, // 6
-	COMM_COMPLETE, // 7
-	ERROR // 8
+	RDMA_PREP, // 6
+	RDMA_READY, // 7
+	RDMA_COMPLETE, // 8
+	ERROR // 9
 };
 
 /* RDMA info */
@@ -46,6 +47,8 @@ struct memory_comm_info {
 
 /* RDMA control block struct */
 struct memory_cb {
+	int server; // am I server?
+
 	struct ib_cq *cq;				// completion queue
 	struct ib_pd *pd;				// protection domain
 	struct ib_qp *qp;				// queue pair
@@ -100,13 +103,13 @@ struct memory_cb {
 	uint32_t cnt;
 
 	/* Connection manager */
-	struct rdma_cm_id *cm_id;		// connection on server, listener on client
-	struct rdma_cm_id *child_cm_id;	// connection on client side
+	struct rdma_cm_id *cm_id;		// connection on client, listener on server
+	struct rdma_cm_id *child_cm_id;	// connection on server
 };
 
 int memory_rdma_init(void);
 void memory_rdma_exit(void);
-int host_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
-		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff);
-int host_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
-		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff);
+int memory_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
+		unsigned int remote_node, unsigned int remote_slab, unsigned int remote_pgoff);
+int memory_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
+		unsigned int remote_node, unsigned int remote_slab, unsigned int remote_pgoff);

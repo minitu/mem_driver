@@ -2,12 +2,9 @@
 
 extern void* slabs[NSLABS];
 extern int node;
-//extern int is_local;
+extern char* nodeip[NNODES];
 extern int port;
-
 struct memory_cb *gcb[NNODES];
-//struct memory_cb *rcb;
-struct task_struct *kc_id = NULL;
 
 static int memory_cma_event_handler(struct rdma_cm_id *cma_id,
 		struct rdma_cm_event *event)
@@ -48,9 +45,7 @@ static int memory_cma_event_handler(struct rdma_cm_id *cma_id,
 #if(DEBUG)
 		printk("ESTABLISHED\n");
 #endif
-		if (!is_local) {
-			cb->state = CONNECTED;
-		}
+		cb->state = CONNECTED;
 		wake_up_interruptible(&cb->sem);
 		break;
 
@@ -83,7 +78,7 @@ static int memory_cma_event_handler(struct rdma_cm_id *cma_id,
 	return 0;
 }
 
-static int server_recv(struct memory_cb *cb, struct ib_wc *wc) {
+static int sync_recv(struct memory_cb *cb, struct ib_wc *wc) {
 	
 	int i;
 
@@ -105,19 +100,7 @@ static int server_recv(struct memory_cb *cb, struct ib_wc *wc) {
 
 	// change state
 	if (cb->state <= CONNECTED)
-		cb->state = COMM_READY;
-
-	return 0;
-}
-
-static int client_recv(struct memory_cb *cb, struct ib_wc *wc) {
-	if (wc->byte_len != sizeof(cb->recv_buf)) {
-		printk(KERN_ERR "received bogus data, size %d\n",
-				wc->byte_len);
-		return -1;
-	}
-
-	// do nothing
+		cb->state = RDMA_PREP;
 
 	return 0;
 }
@@ -148,8 +131,8 @@ static int comm_recv(struct memory_cb *cb, struct ib_wc *wc) {
 #endif
 
 	// change state
-	if (cb->state <= COMM_READY)
-		cb->state = COMM_COMPLETE;
+	if (cb->state <= RDMA_READY)
+		cb->state = RDMA_COMPLETE;
 
 	return 0;
 }
@@ -189,26 +172,30 @@ static void memory_cq_event_handler(struct ib_cq *cq, void *ctx) {
 #if(DEBUG)
 				printk("send completion\n");
 #endif
+				if (cb->server) {
+					cb->state = RDMA_READY;
+					wake_up_interruptible(&cb->sem);
+				}
 				break;
 			case IB_WC_RDMA_WRITE:
 #if(DEBUG)
 				printk("rdma write completion\n");
 #endif
-				cb->state = COMM_COMPLETE;
+				cb->state = RDMA_COMPLETE;
 				wake_up_interruptible(&cb->sem);
 				break;
 			case IB_WC_RDMA_READ:
 #if(DEBUG)
 				printk("rdma read completion\n");
 #endif
-				cb->state = COMM_COMPLETE;
+				cb->state = RDMA_COMPLETE;
 				wake_up_interruptible(&cb->sem);
 				break;
 			case IB_WC_RECV:
 #if(DEBUG)
 				printk("recv completion\n");
 #endif
-				ret = is_local ? server_recv(cb, &wc) : client_recv(cb, &wc);
+				ret = sync_recv(cb, &wc);
 				if (ret) {
 					printk(KERN_ERR "recv wc error: %d\n", ret);
 					goto error;
@@ -271,11 +258,11 @@ static void memory_setup_wr(struct memory_cb *cb) {
 	cb->sq_wr.sg_list = &cb->send_sgl;
 	cb->sq_wr.num_sge = 1;
 
-	if (is_local) {
+	//if (cb->server) {
 		cb->rdma_sq_wr.send_flags = IB_SEND_SIGNALED;
 		cb->rdma_sq_wr.sg_list = &cb->rdma_sgl;
 		cb->rdma_sq_wr.num_sge = 1;
-	}
+	//}
 }
 
 static int memory_setup_buffers(struct memory_cb *cb) {
@@ -407,7 +394,7 @@ static int memory_create_qp(struct memory_cb *cb) {
 	init_attr.recv_cq = cb->cq;
 	init_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 
-	if (is_local) {
+	if (cb->server) {
 		ret = rdma_create_qp(cb->child_cm_id, cb->pd, &init_attr);
 		if (!ret)
 			cb->qp = cb->child_cm_id->qp;
@@ -483,7 +470,7 @@ static void memory_format_send(struct memory_cb *cb) {
 	u32 rkey;
 	int i;
 
-	if (!is_local) {
+	//if (!cb->server) {
 		rkey = cb->dma_mr->rkey;
 		for (i = 0; i < NSLABS; i++) {
 			info->slabs[i] = htonll(cb->local_addr[i]);
@@ -493,13 +480,16 @@ static void memory_format_send(struct memory_cb *cb) {
 #if(DEBUG)
 		printk("RDMA rkey %x len %d\n", rkey, cb->size);
 #endif
-	}
+	//}
 }
 
-int host_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
-		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff) {
+int memory_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
+		unsigned int remote_node, unsigned int remote_slab, unsigned int remote_pgoff) {
 
-	struct memory_cb *cb = gcb[node];
+	if (remote_node == node) // cannot RDMA to itself
+		return -1;
+
+	struct memory_cb *cb = gcb[remote_node];
 	struct ib_send_wr *bad_wr;
 	int ret;
 
@@ -515,7 +505,7 @@ int host_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
 	cb->rdma_sgl.lkey = cb->dma_mr->rkey;
 
 	/* Set state */
-	cb->state = COMM_READY;
+	cb->state = RDMA_READY;
 
 	/* Issue RDMA write */
 	ret = ib_post_send(cb->qp, &cb->rdma_sq_wr, &bad_wr);
@@ -526,28 +516,31 @@ int host_rdma_write(unsigned int local_slab, unsigned int local_pgoff, \
 	cb->rdma_sq_wr.next = NULL;
 
 #if(DEBUG)
-	printk("server posted rdma write req: 0.%u.%u -> %u.%u.%u\n", \
-			local_slab, local_pgoff, node, remote_slab, remote_pgoff);
+	printk("posted rdma write req: %d.%u.%u -> %u.%u.%u\n", \
+			node, local_slab, local_pgoff, remote_node, remote_slab, remote_pgoff);
 #endif
 
 	/* Wait for write completion */
-	wait_event_interruptible(cb->sem, cb->state >= COMM_COMPLETE);
-	if (cb->state != COMM_COMPLETE) {
-		printk(KERN_ERR "wait for COMM_COMPLETE state %d\n", cb->state);
+	wait_event_interruptible(cb->sem, cb->state >= RDMA_COMPLETE);
+	if (cb->state != RDMA_COMPLETE) {
+		printk(KERN_ERR "wait for RDMA_COMPLETE state %d\n", cb->state);
 		return -1;
 	}
 	
 #if(DEBUG)
-	printk("server received write complete\n");
+	printk("received write complete\n");
 #endif
 
 	return 0;
 }
 
-int host_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
-		unsigned int node, unsigned int remote_slab, unsigned int remote_pgoff) {
+int memory_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
+		unsigned int remote_node, unsigned int remote_slab, unsigned int remote_pgoff) {
 	
-	struct memory_cb *cb = gcb[node];
+	if (remote_node == node) // cannot RDMA to itself
+		return -1;
+
+	struct memory_cb *cb = gcb[remote_node];
 	struct ib_send_wr *bad_wr;
 	int ret;
 
@@ -564,7 +557,7 @@ int host_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
 	cb->rdma_sq_wr.next = NULL;
 
 	/* Set state */
-	cb->state = COMM_READY;
+	cb->state = RDMA_READY;
 	
 	/* Issue RDMA read */
 	ret = ib_post_send(cb->qp, &cb->rdma_sq_wr, &bad_wr);
@@ -575,19 +568,19 @@ int host_rdma_read(unsigned int local_slab, unsigned int local_pgoff, \
 	cb->rdma_sq_wr.next = NULL;
 
 #if(DEBUG)
-	printk("server posted rdma read req: 0.%u.%u <- %u.%u.%u\n", \
-			local_slab, local_pgoff, node, remote_slab, remote_pgoff);
+	printk("posted rdma read req: %d.%u.%u <- %u.%u.%u\n", \
+			node, local_slab, local_pgoff, remote_node, remote_slab, remote_pgoff);
 #endif
 
 	/* Wait for read completion */
-	wait_event_interruptible(cb->sem, cb->state >= COMM_COMPLETE);
-	if (cb->state != COMM_COMPLETE) {
-		printk(KERN_ERR "wait for COMM_COMPLETE state %d\n", cb->state);
+	wait_event_interruptible(cb->sem, cb->state >= RDMA_COMPLETE);
+	if (cb->state != RDMA_COMPLETE) {
+		printk(KERN_ERR "wait for RDMA_COMPLETE state %d\n", cb->state);
 		return -1;
 	}
 	
 #if(DEBUG)
-	printk("server received read complete\n");
+	printk("received read complete\n");
 #endif
 
 	return 0;
@@ -666,10 +659,32 @@ static int memory_run_server(struct memory_cb *cb) {
 		goto err2;
 	}
 
-	// wait for client's message
-	wait_event_interruptible(cb->sem, cb->state >= COMM_READY);
-	if (cb->state != COMM_READY) {
-		printk(KERN_ERR "wait for COMM_READY state %d\n", cb->state);
+	// wait for client's RDMA region
+	wait_event_interruptible(cb->sem, cb->state >= RDMA_PREP);
+	if (cb->state != RDMA_PREP) {
+		printk(KERN_ERR "wait for RDMA_PREP state %d\n", cb->state);
+		ret = -1;
+		goto err2;
+	}
+
+	// notify RDMA region to client
+	memory_format_send(cb);
+	if (cb->state == ERROR) {
+		printk(KERN_ERR "memory_format_send failed\n");
+		ret = -1;
+		goto err2;
+	}
+
+	ret = ib_post_send(cb->qp, &cb->sq_wr, &bad_wr);
+	if (ret) {
+		printk(KERN_ERR "post send error %d\n", ret);
+		ret = -1;
+		goto err2;
+	}
+
+	wait_event_interruptible(cb->sem, cb->state >= RDMA_READY);
+	if (cb->state != RDMA_READY) {
+		printk(KERN_ERR "wait for RDMA_READY state %d\n", cb->state);
 		ret = -1;
 		goto err2;
 	}
@@ -797,6 +812,20 @@ static int memory_run_client(struct memory_cb *cb) {
 		ret = -1;
 		goto err2;
 	}
+
+	// wait for server's RDMA region
+	ret = ib_post_recv(cb->qp, &cb->rq_wr, &bad_wr);
+	if (ret) {
+		printk(KERN_ERR "ib_post_recv failed: %d\n", ret);
+		goto err2;
+	}
+
+	wait_event_interruptible(cb->sem, cb->state >= RDMA_PREP);
+	if (cb->state != RDMA_PREP) {
+		printk(KERN_ERR "wait for RDMA_PREP state %d\n", cb->state);
+		ret = -1;
+		goto err2;
+	}
 	
 	// change send & recv buffers
 	cb->recv_sgl.addr = cb->recv_comm_dma_addr;
@@ -804,9 +833,10 @@ static int memory_run_client(struct memory_cb *cb) {
 
 	cb->send_sgl.addr = cb->send_comm_dma_addr;
 	cb->send_sgl.length = sizeof cb->send_comm_buf;
-
-	cb->state = COMM_READY; // change state
 	
+	// ready for RDMA
+	cb->state = RDMA_READY;
+
 	return ret;
 
 err2:
@@ -829,39 +859,47 @@ int memory_rdma_init(void) {
 		if (i != node) {
 			gcb[i] = kzalloc(sizeof(struct memory_cb), GFP_KERNEL);
 			cb = gcb[i];
+
+			cb->state = IDLE;
+			cb->size = MEMORY_BUFSIZE;
+			cb->txdepth = MEMORY_SQ_DEPTH;
+			init_waitqueue_head(&cb->sem);
+
+			if (i < node) { // client role
+				cb->server = 0;
+				cb->addr_str = kstrdup(nodeip[i], GFP_KERNEL);
+				in4_pton(nodeip[i], -1, cb->addr, -1, NULL);
+				cb->port = htons(PORT_START+node-NNODES+(i+1)*(2*NNODES-i-2)/2);
+			}
+			else { // server role
+				cb->server = 1;
+				cb->addr_str = kstrdup(nodeip[node], GFP_KERNEL);
+				in4_pton(nodeip[node], -1, cb->addr, -1, NULL);
+				cb->port = htons(PORT_START+i-NNODES+(node+1)*(2*NNODES-node-2)/2);
+			}
+
+			cb->addr_type = AF_INET;
+
+			cb->cm_id = rdma_create_id(memory_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
+			if (IS_ERR(cb->cm_id)) {
+				ret = PTR_ERR(cb->cm_id);
+				printk("<error> rdma_create_id error %d\n", ret);
+				goto out1;
+			}
+
+			succ_i = i;
 		}
-
-		cb->state = IDLE;
-		cb->size = MEMORY_BUFSIZE;
-		cb->txdepth = MEMORY_SQ_DEPTH;
-		init_waitqueue_head(&cb->sem);
-
-		cb->addr_str = kstrdup(LOCAL_IP, GFP_KERNEL);
-		in4_pton(LOCAL_IP, -1, cb->addr, -1, NULL);
-		cb->addr_type = AF_INET;
-		if (is_local)
-			cb->port = htons(port + i);
-		else
-			cb->port = htons(port);
-
-		cb->cm_id = rdma_create_id(memory_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
-		if (IS_ERR(cb->cm_id)) {
-			ret = PTR_ERR(cb->cm_id);
-			printk("<error> rdma_create_id error %d\n", ret);
-			goto out1;
-		}
-		succ_i = i;
-
-		if (!is_local)
-			break;
 	}
 
-	if (is_local) {
-		for (i = 1; i < NNODES; i++)
-			ret = memory_run_server(gcb[i]);
+	for (i = 0; i < node; i++) {
+		ret = memory_run_client(gcb[i]);
 	}
-	else
-		ret = memory_run_client(rcb);
+
+	// barrier?
+	
+	for (i = node+1; i < NNODES; i++) {
+		ret = memory_run_server(gcb[i]);
+	}
 
 	if (ret != 0)
 		goto out2;
@@ -869,22 +907,16 @@ int memory_rdma_init(void) {
 	return ret;
 
 out2:
-	if (is_local) {
-		for (i = 1; i < NNODES; i++) {
+	for (i = 0; i < NNODES; i++) {
+		if (i != node) {
 			rdma_destroy_id(gcb[i]->cm_id);
 		}
 	}
-	else {
-		rdma_destroy_id(rcb->cm_id);
-	}
 out1:
-	if (is_local) {
-		for (i = 1; i <= succ_i; i++) {
+	for (i = 0; i <= succ_i; i++) {
+		if (i != node) {
 			kfree(gcb[i]);
 		}
-	}
-	else {
-		kfree(rcb);
 	}
 	
 	printk("<error> in %s\n", __FUNCTION__);
@@ -895,8 +927,15 @@ void memory_rdma_exit(void) {
 	
 	int i;
 
-	if (is_local) {
-		for (i = 1; i < NNODES; i++) {
+	for (i = 0; i < NNODES; i++) {
+		if (i < node) {
+			rdma_disconnect(gcb[i]->cm_id);
+			memory_free_buffers(gcb[i]);
+			memory_free_qp(gcb[i]);
+			rdma_destroy_id(gcb[i]->cm_id);
+			kfree(gcb[i]);
+		}
+		else if (i > node) {
 			rdma_disconnect(gcb[i]->child_cm_id);
 			memory_free_buffers(gcb[i]);
 			memory_free_qp(gcb[i]);
@@ -905,11 +944,4 @@ void memory_rdma_exit(void) {
 			kfree(gcb[i]);
 		}
 	}
-	else {
-		rdma_disconnect(rcb->cm_id);
-		memory_free_buffers(rcb);
-		memory_free_qp(rcb);
-		rdma_destroy_id(rcb->cm_id);
-		kfree(rcb);
-	}	
 }

@@ -88,6 +88,12 @@ int memory_init(void) {
 	int ret;
 	struct list_head *lh, *temp_lh;
 
+	// check # of nodes for port assignment
+	if (PORT_START + NNODES*(NNODES-1)/2 - 1 > 65535) { // more than 181 nodes
+		printk("<error> not enough ports\n");
+		goto fail0;
+	}
+
 	// allocate memory for node IP addresses
 	for (i = 0; i < NNODES; i++) {
 		nodeip[i] = kmalloc(32, GFP_KERNEL);
@@ -135,7 +141,7 @@ int memory_init(void) {
 	}
 
 	// calculate port
-	port = RDMA_PORT + node;
+	port = PORT_START + node;
 
 	// register device
 	ret = register_chrdev(MEMORY_MAJOR, "memory", &memory_fops);
@@ -532,9 +538,9 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 	
 	// RDMA write content
 #if(USE_RDMA)
-	ret = host_rdma_write(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
+	ret = memory_rdma_write(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
 	if (ret < 0) {
-		printk("<error> host_rdma_write failure: %d\n", ret);
+		printk("<error> memory_rdma_write failure: %d\n", ret);
 		ret = VM_FAULT_ERROR;
 		goto out;
 	}
@@ -556,9 +562,9 @@ int memory_fault(struct vm_area_struct *vma, struct vm_fault *vmf) {
 		lh = &(rp->list);
 
 #if(USE_RDMA)
-		ret = host_rdma_read(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
+		ret = memory_rdma_read(lp->slab_no, lp->slab_pgoff, rp->node, rp->slab_no, rp->slab_pgoff);
 		if (ret < 0) {
-			printk("<error> host_rdma_read failure: %d\n", ret);
+			printk("<error> memory_rdma_read failure: %d\n", ret);
 			ret = VM_FAULT_ERROR;
 			goto out;
 		}
@@ -666,9 +672,28 @@ int memory_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
 	
 	int ret = 0;
 	struct mmap_area *ma;
+	struct rdma_test_info rdma_info;
 	struct munmap_info info;
 
 	switch(cmd) {
+		case 6:
+			/* Test RDMA capabilities */
+			copy_from_user(&rdma_info, (const void *)arg, sizeof(struct rdma_test_info));
+
+			printk("testing RDMA write...\n");
+			ret = memory_rdma_write(rdma_info.local_slab, rdma_info.local_pgoff, \
+					rdma_info.remote_node, rdma_info.remote_slab, rdma_info.remote_pgoff);
+			if (ret == 0)
+				printk("successful\n");
+			
+			printk("testing RDMA read...\n");
+			ret = memory_rdma_read(rdma_info.local_slab, rdma_info.local_pgoff, \
+					rdma_info.remote_node, rdma_info.remote_slab, rdma_info.remote_pgoff);
+			if (ret == 0)
+				printk("successful\n");
+
+			break;
+
 		case 7:
 		/* munmap */
 		copy_from_user(&info, (const void *)arg, sizeof(struct munmap_info));
