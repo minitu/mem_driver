@@ -3,7 +3,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-#include "mem_ioctl.h"
+#include "../mem_ioctl.h"
 
 int my_munmap(int fd, void *addr, size_t length) {
 	struct munmap_info info;
@@ -27,7 +27,7 @@ int main()
 	}
 
 	int* test_addr[2];
-	test_addr[0] = (int*)mmap(NULL, sizeof(int) * 1024 * 3, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+	//test_addr[0] = (int*)mmap(NULL, sizeof(int) * 1024 * 3, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 	//test_addr[1] = (int*)mmap(NULL, sizeof(int) * 1024 * 3, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 	
 /*

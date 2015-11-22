@@ -105,38 +105,6 @@ static int sync_recv(struct memory_cb *cb, struct ib_wc *wc) {
 	return 0;
 }
 
-static int comm_recv(struct memory_cb *cb, struct ib_wc *wc) {
-	
-	int i;
-
-	if (wc->byte_len != sizeof(cb->recv_comm_buf)) {
-		printk(KERN_ERR "received bogus data, size %d\n",
-				wc->byte_len);
-		return -1;
-	}
-
-	// save response
-	cb->req_type = ntohl(cb->recv_comm_buf.req_type);
-	cb->munmap_va = ntohll(cb->recv_comm_buf.munmap_va);
-	for (i = 0; i < CHUNK_SIZE; i++) {
-		cb->slab[i] = ntohl(cb->recv_comm_buf.slab[i]);
-		cb->pgoff[i] = ntohl(cb->recv_comm_buf.pgoff[i]);
-	}
-	cb->cnt = ntohl(cb->recv_comm_buf.cnt);
-
-#if(DEBUG)
-	printk("received req_type: %u, munmap_va: %p, slab[0]: %u, pgoff[0]: %u, cnt: %u\n", \
-			(unsigned int)cb->req_type, (unsigned long)cb->munmap_va, \
-			(unsigned int)cb->slab[0], (unsigned int)cb->pgoff[0], (unsigned int)cb->cnt);
-#endif
-
-	// change state
-	if (cb->state <= RDMA_READY)
-		cb->state = RDMA_COMPLETE;
-
-	return 0;
-}
-
 static void memory_cq_event_handler(struct ib_cq *cq, void *ctx) {
 
 	struct memory_cb *cb = ctx;

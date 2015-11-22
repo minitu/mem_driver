@@ -65,6 +65,7 @@ void* slabs[NSLABS];
 int slabs_succ = -1;
 
 struct list_head free_list[NNODES];
+//struct list_head free_list;
 
 unsigned long max_pages = NPAGES * NNODES; // max # of mmap'able pages
 unsigned long mmap_pages = 0; // # of current mmap'ed pages
@@ -135,10 +136,11 @@ int memory_init(void) {
 
 	filp_close(fp, NULL);
 
-	// DEBUG
+#if(DEBUG)
 	for (i = 0; i < NNODES; i++) {
 		printk("IP %d: %s\n", i, nodeip[i]);
 	}
+#endif
 
 	// calculate port
 	port = PORT_START + node;
@@ -212,6 +214,12 @@ int memory_init(void) {
 			}	
 		}
 	}
+
+	// TEST
+	printk("sizeof(local_page): %d\n", sizeof(struct local_page));
+	printk("sizeof(remote_page): %d\n", sizeof(struct remote_page));
+	printk("sizeof(remote_map): %d\n", sizeof(struct remote_map));
+	printk("sizeof(mmap_area): %d\n", sizeof(struct mmap_area));
 
 #if(USE_RDMA)
 	// RDMA setup
@@ -677,6 +685,7 @@ int memory_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
 
 	switch(cmd) {
 		case 6:
+#if(USE_RDMA)
 			/* Test RDMA capabilities */
 			copy_from_user(&rdma_info, (const void *)arg, sizeof(struct rdma_test_info));
 
@@ -691,7 +700,7 @@ int memory_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
 					rdma_info.remote_node, rdma_info.remote_slab, rdma_info.remote_pgoff);
 			if (ret == 0)
 				printk("successful\n");
-
+#endif
 			break;
 
 		case 7:

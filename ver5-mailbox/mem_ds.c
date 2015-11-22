@@ -11,7 +11,7 @@ void rm_ht_init(void) {
 }
 
 void ma_ht_init(void) {
-	
+
 	hash_init(ma_ht);
 }
 
